@@ -12,8 +12,9 @@
 **Know the price before you pay.**
 
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)](https://react.dev)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql)](https://postgresql.org)
+[![Node.js](https://img.shields.io/badge/Node.js-20-339933?style=flat-square&logo=nodedotjs)](https://nodejs.org)
+[![Express](https://img.shields.io/badge/Express-4.18-000000?style=flat-square&logo=express)](https://expressjs.com)
+[![MongoDB](https://img.shields.io/badge/MongoDB-7.0-47A248?style=flat-square&logo=mongodb)](https://mongodb.com)
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=flat-square&logo=redis)](https://redis.io)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
@@ -38,12 +39,12 @@ The problem is a **data availability + visibility gap**, not a logistics problem
 I split the system into two clearly separated roles at the auth layer — **Patient** and **Pharmacy (Vendor)** — each with a distinct UI surface and permission scope. A patient can only read prices and create reservations. A vendor can only manage their own inventory and fulfill reservations for their registered pharmacy. No cross-role data leakage.
 
 ### Why This Stack
-- **React + Vite** on the frontend for fast iteration, component reuse across roles, and a snappy desktop experience
-- **FastAPI** on the backend because Python made sense for the future addition of ML-based price anomaly detection and generic substitution recommendations
-- **PostgreSQL** as the primary store — relational data (pharmacies → medicines → prices → reservations) fits naturally into a relational model
-- **Redis** for caching price queries — the most common read pattern (search medicine X near location Y) gets cached with a short TTL so the DB isn't hit on every keystroke
-- **PostGIS** extension on Postgres for geospatial queries ("pharmacies within 3km of user")
-- **Supabase** for auth (JWT), storage, and as the managed Postgres host in production
+- **React + Vite** on the frontend for fast iteration, component reuse across roles, and a snappy desktop experience.
+- **Node.js + Express** on the backend for a unified JavaScript/TypeScript experience across the stack, enabling faster feature development and seamless JSON handling.
+- **MongoDB** as the primary store — its flexible document model is perfect for medicine data which can vary significantly in attributes (e.g., salt composition, manufacturer details, packaging).
+- **Redis** for caching price queries — the most common read pattern (search medicine X near location Y) gets cached with a short TTL so the DB isn't hit on every keystroke.
+- **Mongoose** for elegant MongoDB object modeling and validation.
+- **JWT + Bcrypt** for secure, stateless authentication and authorization.
 
 ---
 
@@ -55,16 +56,13 @@ I split the system into two clearly separated roles at the auth layer — **Pati
 | Styling | Tailwind CSS + shadcn/ui | Utility-first, consistent design tokens |
 | State Management | Zustand | Lightweight, no boilerplate |
 | Data Fetching | TanStack Query (React Query) | Cache + background refetch for prices |
-| Maps | React Leaflet + OpenStreetMap | Free, no Google Maps billing |
-| Charts | Recharts | Price history sparklines, analytics |
-| Backend Framework | FastAPI (Python 3.11) | Async, auto docs, fast to build |
-| Auth | Supabase Auth (JWT) | Role claims in JWT payload |
-| Primary DB | PostgreSQL 16 + PostGIS | Relational + geo queries |
+| Backend Framework | Node.js + Express | Unified JS stack, asynchronous performance |
+| Primary DB | MongoDB 7.0 | Document-based flexible schema |
 | Cache | Redis 7 | Price query caching (60s TTL) |
-| ORM | SQLAlchemy 2.0 + Alembic | Async ORM + migrations |
-| Background Jobs | Celery + Redis | Price change notifications |
-| API Docs | Swagger UI (auto via FastAPI) | `/docs` endpoint |
-| Deployment | Docker + Docker Compose | Single command local setup |
+| ODM | Mongoose | Typed schemas for MongoDB |
+| Auth | JWT (Json Web Token) | Role claims in token payload |
+| Background Jobs | BullMQ + Redis | Price change notifications |
+| API Docs | Swagger / JSDoc | API documentation |
 
 ---
 
@@ -157,59 +155,46 @@ medprice/
 │           └── routes.ts              # Route constants
 │
 │
-└── backend/                           # FastAPI app
-    ├── main.py                        # App entry, CORS, router mounts
-    ├── requirements.txt
-    ├── alembic.ini
-    │
-    ├── alembic/
-    │   └── versions/                  # DB migration files
-    │
-    ├── app/
+└── backend/                           # Node.js + Express app
+    ├── src/
+    │   ├── index.ts                   # App entry, middleware setup
+    │   ├── config/                    # Environment variables (dotenv/zod)
+    │   │   ├── db.ts                  # MongoDB connection
+    │   │   └── redis.ts               # Redis client
     │   │
-    │   ├── core/
-    │   │   ├── config.py              # Settings from .env (pydantic-settings)
-    │   │   ├── database.py            # Async SQLAlchemy engine + session
-    │   │   ├── redis.py               # Redis connection pool
-    │   │   ├── security.py            # JWT decode, role extraction
-    │   │   └── deps.py                # FastAPI dependencies (get_db, get_current_user)
+    │   ├── models/                    # Mongoose schemas/models
+    │   │   ├── User.ts                # User (role: patient | vendor)
+    │   │   ├── Pharmacy.ts            # Pharmacy (geo index, hours)
+    │   │   ├── Medicine.ts            # Medicine master (name, salt, manufacturer)
+    │   │   ├── Inventory.ts           # PharmacyMedicine (price, stock)
+    │   │   └── Reservation.ts         # Reservation (patient → pharmacy → medicine)
     │   │
-    │   ├── models/                    # SQLAlchemy ORM models
-    │   │   ├── user.py                # User (role: patient | vendor)
-    │   │   ├── pharmacy.py            # Pharmacy (geo point, hours)
-    │   │   ├── medicine.py            # Medicine master (name, salt, manufacturer)
-    │   │   ├── inventory.py           # PharmacyMedicine (price, stock, listed)
-    │   │   └── reservation.py         # Reservation (patient → pharmacy → medicine)
+    │   ├── controllers/               # Route logic
+    │   │   ├── authController.ts      
+    │   │   ├── medicineController.ts  
+    │   │   ├── pharmacyController.ts   
+    │   │   └── vendorController.ts   
     │   │
-    │   ├── schemas/                   # Pydantic request/response schemas
-    │   │   ├── medicine.py
-    │   │   ├── pharmacy.py
-    │   │   ├── inventory.py
-    │   │   ├── reservation.py
-    │   │   └── user.py
+    │   ├── routes/                    # Express Router mounts
+    │   │   ├── authRoutes.ts
+    │   │   ├── medicineRoutes.ts
+    │   │   ├── pharmacyRoutes.ts
+    │   │   └── reservationRoutes.ts
     │   │
-    │   ├── routers/
-    │   │   ├── auth.py                # POST /auth/register, /auth/login
-    │   │   ├── medicines.py           # GET /medicines/search, /medicines/{id}/prices
-    │   │   ├── pharmacies.py          # GET /pharmacies/nearby
-    │   │   ├── inventory.py           # CRUD /vendor/inventory (vendor only)
-    │   │   ├── reservations.py        # POST/GET /reservations (both roles)
-    │   │   └── analytics.py           # GET /vendor/analytics (vendor only)
+    │   ├── middleware/
+    │   │   ├── auth.ts                # JWT verify + role check
+    │   │   └── error.ts               # Global error handler
     │   │
     │   ├── services/
-    │   │   ├── price_service.py       # Core: fetch + rank prices, cache logic
-    │   │   ├── geo_service.py         # PostGIS nearby query wrapper
-    │   │   ├── notification_service.py# Celery tasks: price drop alerts
-    │   │   └── generic_service.py     # Salt-based generic substitute lookup
+    │   │   ├── priceService.ts        # Core: fetch + rank prices, cache logic
+    │   │   ├── geoService.ts          # MongoDB $near queries
+    │   │   └── notificationService.ts # BullMQ tasks
     │   │
-    │   └── tasks/
-    │       ├── celery_app.py          # Celery instance
-    │       └── price_alerts.py        # Periodic: check watchlist + notify
+    │   └── utils/                     # logger, formatters, etc.
     │
-    └── tests/
-        ├── test_medicines.py
-        ├── test_reservations.py
-        └── test_geo.py
+    ├── tests/
+    ├── package.json
+    └── tsconfig.json
 ```
 
 ---
@@ -217,17 +202,17 @@ medprice/
 ## Database Schema (Key Tables)
 
 ```sql
--- Core entities
-users          (id, phone, role: 'patient'|'vendor', created_at)
-pharmacies     (id, vendor_id, name, license_no, location: GEOGRAPHY, hours, verified)
-medicines      (id, name, generic_name, salt, manufacturer, dosage, pack_size)
+-- MongoDB Collections (Conceptual)
+users          { id, email, password_hash, role: 'patient'|'vendor', created_at }
+pharmacies     { id, vendor_id, name, license_no, location: { type: "Point", coordinates: [lng, lat] }, hours, verified }
+medicines      { id, name, generic_name, salt, manufacturer, dosage, pack_size }
 
 -- The price layer
-inventory      (id, pharmacy_id, medicine_id, mrp, selling_price, stock_qty, is_listed, updated_at)
+inventory      { id, pharmacy_id, medicine_id, mrp, selling_price, stock_qty, is_listed, updated_at }
 
 -- Patient actions
-reservations   (id, patient_id, pharmacy_id, medicine_id, qty, status, reservation_code, created_at)
-watchlist      (id, patient_id, medicine_id, alert_price, created_at)
+reservations   { id, patient_id, pharmacy_id, medicine_id, qty, status, reservation_code, created_at }
+watchlist      { id, patient_id, medicine_id, alert_price, created_at }
 ```
 
 ---
@@ -268,17 +253,15 @@ cd medprice
 
 # 2. Environment
 cp .env.example .env
-# Fill in: SUPABASE_URL, SUPABASE_KEY, DATABASE_URL, REDIS_URL
+# Fill in: MONGODB_URI, JWT_SECRET, REDIS_URL
 
-# 3. Start everything
-docker-compose up --build
+# 3. Start services
+# In separate terminals:
+# Backend: cd backend && npm run dev
+# Frontend: cd frontend && npm run dev
 
-# 4. Run migrations
-docker-compose exec backend alembic upgrade head
-
+# Backend: http://localhost:8000
 # Frontend: http://localhost:5173
-# Backend API: http://localhost:8000
-# API Docs: http://localhost:8000/docs
 ```
 
 ---
