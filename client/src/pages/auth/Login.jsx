@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const styles = {
   container: {
@@ -201,9 +201,10 @@ const styles = {
 
 function Login() {
   const location = useLocation();
+  const navigate = useNavigate();
   const role = location.state?.role || 'patient';
 
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState('9733064817');
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const otpRefs = useRef([]);
@@ -236,7 +237,14 @@ function Login() {
   const handleVerify = () => {
     const otpValue = otp.join('');
     console.log('Verifying OTP:', otpValue, 'for role:', role);
-    // No real API yet — just log
+    
+    // Redirect to the appropriate dashboard based on role
+    if (role === 'patient') {
+      navigate('/patient/home');
+    } else {
+      // Fallback for pharmacy/vendor if those aren't fully built yet
+      navigate('/patient/home');
+    }
   };
 
   const isOtpComplete = otp.every((d) => d !== '');
