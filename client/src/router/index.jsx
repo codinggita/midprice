@@ -4,6 +4,7 @@ import RoleSelector from '../pages/auth/RoleSelector';
 import Login from '../pages/auth/Login';
 import PatientLayout from '../layouts/PatientLayout';
 import PatientHome from '../pages/patient/Home';
+import SearchResults from '../pages/patient/SearchResults';
 
 function AppRoutes() {
   return (
@@ -16,6 +17,7 @@ function AppRoutes() {
       <Route path="/patient" element={<PatientLayout />}>
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={<PatientHome />} />
+        <Route path="search" element={<SearchResults />} />
       </Route>
     </Routes>
   );
