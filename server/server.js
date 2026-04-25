@@ -5,6 +5,7 @@ const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const medicineRoutes = require('./routes/medicineRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
+const reservationRoutes = require('./routes/reservationRoutes');
 
 dotenv.config();
 
@@ -26,6 +27,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/medicines', medicineRoutes);
 app.use('/api/vendor/inventory', inventoryRoutes);
+app.use('/api/reservations', reservationRoutes);
 
 // Basic route
 app.get('/', (req, res) => {

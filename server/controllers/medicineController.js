@@ -1,5 +1,6 @@
 const Inventory = require('../models/Inventory');
 const Pharmacy = require('../models/Pharmacy');
+const Medicine = require('../models/Medicine');
 
 // Distance formula (Haversine)
 function getDistanceKm(lat1, lng1, lat2, lng2) {
