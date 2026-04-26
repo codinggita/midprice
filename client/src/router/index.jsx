@@ -11,9 +11,6 @@ import PatientReservations from '../pages/patient/Reservations';
 import VendorLayout from '../layouts/VendorLayout';
 import VendorDashboard from '../pages/vendor/Dashboard';
 import VendorInventory from '../pages/vendor/Inventory';
-import VendorReservations from '../pages/vendor/Reservations';
-import NotFound from '../pages/NotFound';
-import ProtectedRoute from './ProtectedRoute';
 
 function AppRoutes() {
   return (
@@ -22,15 +19,8 @@ function AppRoutes() {
       <Route path="/auth/select-role" element={<RoleSelector />} />
       <Route path="/auth/login" element={<Login />} />
 
-      {/* Patient routes — protected */}
-      <Route
-        path="/patient"
-        element={
-          <ProtectedRoute role="patient">
-            <PatientLayout />
-          </ProtectedRoute>
-        }
-      >
+      {/* Patient routes */}
+      <Route path="/patient" element={<PatientLayout />}>
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={<PatientHome />} />
         <Route path="search" element={<SearchResults />} />
@@ -39,15 +29,8 @@ function AppRoutes() {
         <Route path="reservations" element={<PatientReservations />} />
       </Route>
 
-      {/* Vendor routes — protected */}
-      <Route
-        path="/vendor"
-        element={
-          <ProtectedRoute role="vendor">
-            <VendorLayout />
-          </ProtectedRoute>
-        }
-      >
+      {/* Vendor routes */}
+      <Route path="/vendor" element={<VendorLayout />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<VendorDashboard />} />
         <Route path="inventory" element={<VendorInventory />} />
