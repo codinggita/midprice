@@ -12,6 +12,7 @@ import VendorLayout from '../layouts/VendorLayout';
 import VendorDashboard from '../pages/vendor/Dashboard';
 import VendorInventory from '../pages/vendor/Inventory';
 import VendorReservations from '../pages/vendor/Reservations';
+import NotFound from '../pages/NotFound';
 import ProtectedRoute from './ProtectedRoute';
 
 function AppRoutes() {
@@ -52,6 +53,9 @@ function AppRoutes() {
         <Route path="inventory" element={<VendorInventory />} />
         <Route path="reservations" element={<VendorReservations />} />
       </Route>
+
+      {/* 404 catch-all */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

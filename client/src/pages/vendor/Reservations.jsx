@@ -36,13 +36,15 @@ function VendorReservations() {
   const [activeTab, setActiveTab] = useState('pending');
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const fetchReservations = async (status) => {
     setLoading(true);
+    setError('');
     try {
       const { data } = await api.get(`/api/vendor/reservations?status=${status}`);
       setReservations(data.reservations || []);
-    } catch (err) { console.error(err); setReservations([]); }
+    } catch (_) { setError('Something went wrong. Try again.'); setReservations([]); }
     finally { setLoading(false); }
   };
 
@@ -52,12 +54,19 @@ function VendorReservations() {
     try {
       await api.patch(`/api/vendor/reservations/${id}/status`, { status });
       fetchReservations(activeTab);
-    } catch (err) { console.error(err); }
+    } catch (_) { setError('Failed to update status.'); }
   };
 
   return (
     <div style={s.page}>
       <div style={s.heading}>Reservations 📋</div>
+
+      {error && (
+        <div style={{ background: '#fef2f2', border: '2px solid #ef4444', borderRadius: '12px', padding: '1rem', marginBottom: '1.5rem', color: '#ef4444', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {error}
+          <button style={{ padding: '0.4rem 1rem', borderRadius: '8px', border: 'none', background: '#ef4444', color: '#fff', fontWeight: 600, cursor: 'pointer' }} onClick={() => fetchReservations(activeTab)}>Retry</button>
+        </div>
+      )}
 
       <div style={s.tabRow}>
         {tabs.map((tab) => (

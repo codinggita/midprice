@@ -237,6 +237,7 @@ function SearchResults() {
   const [sortBy, setSortBy] = useState('low-to-high');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   /* ── Fetch from API ── */
   useEffect(() => {
@@ -244,16 +245,16 @@ function SearchResults() {
 
     const fetchResults = async () => {
       setLoading(true);
+      setError('');
       try {
-        // Use Kolkata coordinates as default
         const lat = 22.5726;
         const lng = 88.3639;
         const { data } = await api.get(
           `/api/medicines/search?q=${encodeURIComponent(queryFromUrl)}&lat=${lat}&lng=${lng}`
         );
         setResults(data.results || []);
-      } catch (err) {
-        console.error('Search failed:', err);
+      } catch (_) {
+        setError('Something went wrong. Try again.');
         setResults([]);
       } finally {
         setLoading(false);
@@ -365,6 +366,16 @@ function SearchResults() {
 
       {/* ── Loading ── */}
       {loading && <div style={s.loading}>🔍 Searching pharmacies near you...</div>}
+
+      {/* ── Error ── */}
+      {!loading && error && (
+        <div style={{ ...s.empty, border: '2px solid #ef4444', color: '#ef4444' }}>
+          {error}
+          <div style={{ marginTop: '0.75rem' }}>
+            <button style={{ padding: '0.5rem 1.2rem', borderRadius: '10px', border: 'none', background: '#ef4444', color: '#fff', fontWeight: 600, cursor: 'pointer' }} onClick={() => setSearchParams({ q: queryFromUrl })}>Retry</button>
+          </div>
+        </div>
+      )}
 
       {/* ── Result cards ── */}
       {!loading && processedResults.length === 0 ? (

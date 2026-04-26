@@ -28,23 +28,33 @@ const getBadge = (status) => {
 function PatientReservations() {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetch = async () => {
-      try {
-        const { data } = await api.get('/api/reservations');
-        setReservations(data.reservations || []);
-      } catch (err) { console.error(err); }
-      finally { setLoading(false); }
-    };
-    fetch();
-  }, []);
+  const fetchReservations = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { data } = await api.get('/api/reservations');
+      setReservations(data.reservations || []);
+    } catch (_) { setError('Something went wrong. Try again.'); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchReservations(); }, []);
 
   if (loading) return <div style={s.loading}>⏳ Loading reservations...</div>;
 
   return (
     <div style={s.page}>
       <div style={s.heading}>My Reservations 📋</div>
+
+      {error && (
+        <div style={{ background: '#fef2f2', border: '2px solid #ef4444', borderRadius: '12px', padding: '1rem', marginBottom: '1.5rem', color: '#ef4444', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {error}
+          <button style={{ padding: '0.4rem 1rem', borderRadius: '8px', border: 'none', background: '#ef4444', color: '#fff', fontWeight: 600, cursor: 'pointer' }} onClick={fetchReservations}>Retry</button>
+        </div>
+      )}
+
       <div style={s.tableWrap}>
         <table style={s.table}>
           <thead><tr><th style={s.th}>Medicine</th><th style={s.th}>Pharmacy</th><th style={s.th}>Qty</th><th style={s.th}>Code</th><th style={s.th}>Status</th><th style={s.th}>Date</th></tr></thead>

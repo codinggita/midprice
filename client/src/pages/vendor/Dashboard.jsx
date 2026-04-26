@@ -34,13 +34,15 @@ function VendorDashboard() {
   const navigate = useNavigate();
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [inventory, setInventory] = useState([]);
 
   const fetchReservations = async () => {
     try {
       const { data } = await api.get('/api/vendor/reservations?status=pending');
       setReservations(data.reservations || []);
-    } catch (err) { console.error(err); }
+      setError('');
+    } catch (_) { setError('Something went wrong. Try again.'); }
     finally { setLoading(false); }
   };
 
@@ -48,7 +50,7 @@ function VendorDashboard() {
     try {
       const { data } = await api.get('/api/vendor/inventory');
       setInventory(data.inventory || []);
-    } catch (err) { console.error(err); }
+    } catch (_) { /* silent */ }
   };
 
   useEffect(() => { fetchReservations(); fetchInventory(); }, []);
@@ -57,14 +59,14 @@ function VendorDashboard() {
     try {
       await api.patch(`/api/vendor/reservations/${id}/status`, { status: 'ready' });
       fetchReservations();
-    } catch (err) { console.error(err); }
+    } catch (_) { setError('Failed to update status.'); }
   };
 
   const handleCancel = async (id) => {
     try {
       await api.patch(`/api/vendor/reservations/${id}/status`, { status: 'cancelled' });
       fetchReservations();
-    } catch (err) { console.error(err); }
+    } catch (_) { setError('Failed to cancel reservation.'); }
   };
 
   const lowStockItems = inventory.filter((i) => i.isListed && i.stockQty > 0 && i.stockQty <= 5);
@@ -80,6 +82,13 @@ function VendorDashboard() {
   return (
     <div style={s.page}>
       <div style={s.greeting}>Pharmacy Dashboard 🏪</div>
+
+      {error && (
+        <div style={{ background: '#fef2f2', border: '2px solid #ef4444', borderRadius: '12px', padding: '1rem', marginBottom: '1.5rem', color: '#ef4444', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {error}
+          <button style={{ padding: '0.4rem 1rem', borderRadius: '8px', border: 'none', background: '#ef4444', color: '#fff', fontWeight: 600, cursor: 'pointer' }} onClick={() => { setError(''); fetchReservations(); }}>Retry</button>
+        </div>
+      )}
 
       <div style={s.statsRow}>
         {statsData.map((stat, i) => (

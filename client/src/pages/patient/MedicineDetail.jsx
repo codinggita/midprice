@@ -262,6 +262,7 @@ function MedicineDetail() {
   const [activeTab, setActiveTab] = useState('Price Comparison');
   const [prices, setPrices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [medicineName, setMedicineName] = useState('');
   const [genericName, setGenericName] = useState('');
   const [manufacturer, setManufacturer] = useState('');
@@ -269,15 +270,14 @@ function MedicineDetail() {
   useEffect(() => {
     const fetchPrices = async () => {
       setLoading(true);
+      setError('');
       try {
         const lat = 22.5726;
         const lng = 88.3639;
         const { data } = await api.get(`/api/medicines/${id}/prices?lat=${lat}&lng=${lng}`);
         setPrices(data.results || []);
 
-        // Try to get medicine info from the search endpoint
         if (data.results && data.results.length > 0) {
-          // We need medicine name — fetch from search
           const searchRes = await api.get(`/api/medicines/search?q=&lat=${lat}&lng=${lng}`);
           const match = searchRes.data.results?.find(
             (r) => r.medicine.id === id
@@ -288,8 +288,8 @@ function MedicineDetail() {
             setManufacturer(match.medicine.manufacturer || '');
           }
         }
-      } catch (err) {
-        console.error('Failed to fetch prices:', err);
+      } catch (_) {
+        setError('Something went wrong. Try again.');
       } finally {
         setLoading(false);
       }
@@ -308,6 +308,17 @@ function MedicineDetail() {
 
   if (loading) {
     return <div style={s.loading}>⏳ Loading price comparison...</div>;
+  }
+
+  if (error) {
+    return (
+      <div style={{ ...s.placeholder, border: '2px solid #ef4444', color: '#ef4444' }}>
+        {error}
+        <div style={{ marginTop: '0.75rem' }}>
+          <button style={{ padding: '0.5rem 1.2rem', borderRadius: '10px', border: 'none', background: '#ef4444', color: '#fff', fontWeight: 600, cursor: 'pointer' }} onClick={() => { setError(''); setLoading(true); window.location.reload(); }}>Retry</button>
+        </div>
+      </div>
+    );
   }
 
   if (sorted.length === 0) {
