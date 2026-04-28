@@ -426,6 +426,7 @@ function MedicineDetail() {
                         {(p.stockQty > 0 || p.stock) ? (
                           <button
                             style={s.reserveBtn}
+                            onClick={() => navigate(`/patient/reservation/${id}?pharmacyId=${p.pharmacy?.id}&name=${encodeURIComponent(medicineName)}&mrp=${p.mrp}&price=${p.sellingPrice}&pharmacyName=${encodeURIComponent(p.pharmacy?.name)}`)}
                             onMouseEnter={(e) =>
                               (e.currentTarget.style.background = '#178c65')
                             }
@@ -463,30 +464,33 @@ function MedicineDetail() {
       </div>
 
       {/* ── Sticky Side Card ── */}
-      <div style={s.stickyCard}>
-        <div style={s.scLabel}>🏆 Best Deal</div>
-        <div style={s.scName}>{cheapest.pharmacyName}</div>
-        <div style={s.scAddress}>📍 {cheapest.address}</div>
-        <div style={s.scTiming}>🕐 {cheapest.timing}</div>
+      {cheapest && (
+        <div style={s.stickyCard}>
+          <div style={s.scLabel}>🏆 Best Deal</div>
+          <div style={s.scName}>{cheapest.pharmacy?.name}</div>
+          <div style={s.scAddress}>📍 {cheapest.pharmacy?.address}</div>
+          <div style={s.scTiming}>🕐 {cheapest.pharmacy?.hours}</div>
 
-        <div style={s.scDivider} />
+          <div style={s.scDivider} />
 
-        <div style={s.scPriceRow}>
-          <span style={s.scPrice}>₹{cheapest.sellingPrice}</span>
-          <span style={s.scMrp}>₹{cheapest.mrp}</span>
-        </div>
-        <div style={s.scSavings}>
-          Save ₹{cheapest.mrp - cheapest.sellingPrice}
-        </div>
+          <div style={s.scPriceRow}>
+            <span style={s.scPrice}>₹{cheapest.sellingPrice}</span>
+            <span style={s.scMrp}>₹{cheapest.mrp}</span>
+          </div>
+          <div style={s.scSavings}>
+            Save ₹{cheapest.mrp - cheapest.sellingPrice}
+          </div>
 
         <button
           style={s.scReserveBtn}
+          onClick={() => navigate(`/patient/reservation/${id}?pharmacyId=${cheapest.pharmacy?.id}&name=${encodeURIComponent(medicineName)}&mrp=${cheapest.mrp}&price=${cheapest.sellingPrice}&pharmacyName=${encodeURIComponent(cheapest.pharmacy?.name)}`)}
           onMouseEnter={(e) => (e.currentTarget.style.background = '#178c65')}
           onMouseLeave={(e) => (e.currentTarget.style.background = '#1D9E75')}
         >
           Reserve Now
         </button>
       </div>
+      )}
     </div>
   );
 }
