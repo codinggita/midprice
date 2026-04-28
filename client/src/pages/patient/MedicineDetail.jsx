@@ -1,6 +1,69 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import api from '../../lib/api';
+import React, { useState, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
+
+/* ── Hardcoded pharmacy data ── */
+const pharmacyData = [
+  {
+    id: 1,
+    pharmacyName: 'Wellness Forever',
+    distance: '2.5 km',
+    sellingPrice: 85,
+    mrp: 145,
+    stock: true,
+    address: '23, Salt Lake City, Sector V',
+    timing: '8:00 AM – 10:00 PM',
+  },
+  {
+    id: 2,
+    pharmacyName: 'HealthKart Pharmacy',
+    distance: '0.5 km',
+    sellingPrice: 92,
+    mrp: 145,
+    stock: true,
+    address: '15, Park Street, Kolkata',
+    timing: '9:00 AM – 9:00 PM',
+  },
+  {
+    id: 3,
+    pharmacyName: 'Apollo Pharmacy',
+    distance: '0.8 km',
+    sellingPrice: 98,
+    mrp: 145,
+    stock: true,
+    address: '7A, Camac Street, Kolkata',
+    timing: '24 Hours',
+  },
+  {
+    id: 4,
+    pharmacyName: 'NetMeds Store',
+    distance: '1.8 km',
+    sellingPrice: 105,
+    mrp: 145,
+    stock: false,
+    address: '42, New Town, Action Area 1',
+    timing: '10:00 AM – 8:00 PM',
+  },
+  {
+    id: 5,
+    pharmacyName: 'MedPlus',
+    distance: '1.2 km',
+    sellingPrice: 112,
+    mrp: 145,
+    stock: true,
+    address: '9, Gariahat Road, Kolkata',
+    timing: '8:30 AM – 9:30 PM',
+  },
+  {
+    id: 6,
+    pharmacyName: 'Frank Ross Pharmacy',
+    distance: '3.1 km',
+    sellingPrice: 120,
+    mrp: 145,
+    stock: false,
+    address: '55, College Street, Kolkata',
+    timing: '9:00 AM – 8:00 PM',
+  },
+];
 
 /* ── Styles ── */
 const s = {
@@ -234,14 +297,7 @@ const s = {
     margin: '1rem 0',
   },
 
-  /* Loading / Placeholder */
-  loading: {
-    textAlign: 'center',
-    padding: '3rem 1rem',
-    color: '#1D9E75',
-    fontSize: '1rem',
-    fontWeight: 600,
-  },
+  /* Placeholder tab */
   placeholder: {
     textAlign: 'center',
     padding: '3rem 1rem',
@@ -254,11 +310,10 @@ const s = {
   },
 };
 
-const tabsList = ['Price Comparison', 'About Medicine', 'Alternatives'];
+const tabs = ['Price Comparison', 'About Medicine', 'Alternatives'];
 
 function MedicineDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Price Comparison');
   const [prices, setPrices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -303,25 +358,6 @@ function MedicineDetail() {
 
   const cheapest = sorted[0];
 
-  if (loading) {
-    return <div style={s.loading}>⏳ Loading price comparison...</div>;
-  }
-
-  if (error) {
-    return (
-      <div style={{ ...s.placeholder, border: '2px solid #ef4444', color: '#ef4444' }}>
-        {error}
-        <div style={{ marginTop: '0.75rem' }}>
-          <button style={{ padding: '0.5rem 1.2rem', borderRadius: '10px', border: 'none', background: '#ef4444', color: '#fff', fontWeight: 600, cursor: 'pointer' }} onClick={() => { setError(''); setLoading(true); window.location.reload(); }}>Retry</button>
-        </div>
-      </div>
-    );
-  }
-
-  if (sorted.length === 0) {
-    return <div style={s.placeholder}>No pharmacy prices found for this medicine.</div>;
-  }
-
   return (
     <div style={s.page}>
       {/* ── Main Column ── */}
@@ -333,7 +369,7 @@ function MedicineDetail() {
 
         {/* Tab bar */}
         <div style={s.tabBar}>
-          {tabsList.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab}
               style={{
@@ -366,40 +402,29 @@ function MedicineDetail() {
                 {sorted.map((p, i) => {
                   const isBest = i === 0;
                   const savings = p.mrp - p.sellingPrice;
-                  const inStock = p.stockQty > 0;
 
                   return (
                     <tr
-                      key={p.inventoryId}
+                      key={p.id}
                       style={isBest ? s.bestRow : {}}
                     >
                       <td style={{ ...s.td, ...s.pharmacyCell }}>
-                        {p.pharmacy.name}
+                        {p.pharmacyName}
                         {isBest && <span style={s.bestBadge}>Best Price</span>}
                       </td>
-                      <td style={s.td}>📍 {p.distance} km</td>
+                      <td style={s.td}>📍 {p.distance}</td>
                       <td style={{ ...s.td, ...s.priceCell }}>₹{p.sellingPrice}</td>
                       <td style={{ ...s.td, ...s.mrpCell }}>₹{p.mrp}</td>
                       <td style={{ ...s.td, ...s.saveCell }}>₹{savings}</td>
                       <td style={s.td}>
-                        <span style={inStock ? s.stockIn : s.stockOut}>
-                          {inStock ? '● In Stock' : '● Out of Stock'}
+                        <span style={p.stock ? s.stockIn : s.stockOut}>
+                          {p.stock ? '● In Stock' : '● Out of Stock'}
                         </span>
                       </td>
                       <td style={s.td}>
-                        {inStock ? (
+                        {p.stock ? (
                           <button
                             style={s.reserveBtn}
-                            onClick={() =>
-                              navigate(`/patient/reserve/${id}`, {
-                                state: {
-                                  medicine: { name: medicineName, genericName, manufacturer, id },
-                                  pharmacy: p.pharmacy,
-                                  mrp: p.mrp,
-                                  sellingPrice: p.sellingPrice,
-                                },
-                              })
-                            }
                             onMouseEnter={(e) =>
                               (e.currentTarget.style.background = '#178c65')
                             }
@@ -439,9 +464,9 @@ function MedicineDetail() {
       {/* ── Sticky Side Card ── */}
       <div style={s.stickyCard}>
         <div style={s.scLabel}>🏆 Best Deal</div>
-        <div style={s.scName}>{cheapest.pharmacy.name}</div>
-        <div style={s.scAddress}>📍 {cheapest.pharmacy.address}</div>
-        <div style={s.scTiming}>🕐 {cheapest.pharmacy.hours}</div>
+        <div style={s.scName}>{cheapest.pharmacyName}</div>
+        <div style={s.scAddress}>📍 {cheapest.address}</div>
+        <div style={s.scTiming}>🕐 {cheapest.timing}</div>
 
         <div style={s.scDivider} />
 
@@ -455,16 +480,6 @@ function MedicineDetail() {
 
         <button
           style={s.scReserveBtn}
-          onClick={() =>
-            navigate(`/patient/reserve/${id}`, {
-              state: {
-                medicine: { name: medicineName, genericName, manufacturer, id },
-                pharmacy: cheapest.pharmacy,
-                mrp: cheapest.mrp,
-                sellingPrice: cheapest.sellingPrice,
-              },
-            })
-          }
           onMouseEnter={(e) => (e.currentTarget.style.background = '#178c65')}
           onMouseLeave={(e) => (e.currentTarget.style.background = '#1D9E75')}
         >

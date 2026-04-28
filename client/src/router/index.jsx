@@ -26,15 +26,8 @@ function AppRoutes() {
       <Route path="/auth/select-role" element={<RoleSelector />} />
       <Route path="/auth/login" element={<Login />} />
 
-      {/* Patient routes — protected */}
-      <Route
-        path="/patient"
-        element={
-          <ProtectedRoute role="patient">
-            <PatientLayout />
-          </ProtectedRoute>
-        }
-      >
+      {/* Patient routes */}
+      <Route path="/patient" element={<PatientLayout />}>
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={<PatientHome />} />
         <Route path="search" element={<SearchResults />} />
@@ -45,15 +38,8 @@ function AppRoutes() {
         <Route path="saved" element={<PatientSaved />} />
       </Route>
 
-      {/* Vendor routes — protected */}
-      <Route
-        path="/vendor"
-        element={
-          <ProtectedRoute role="vendor">
-            <VendorLayout />
-          </ProtectedRoute>
-        }
-      >
+      {/* Vendor routes */}
+      <Route path="/vendor" element={<VendorLayout />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<VendorDashboard />} />
         <Route path="inventory" element={<VendorInventory />} />
