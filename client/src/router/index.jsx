@@ -12,6 +12,10 @@ import VendorLayout from '../layouts/VendorLayout';
 import VendorDashboard from '../pages/vendor/Dashboard';
 import VendorInventory from '../pages/vendor/Inventory';
 import VendorReservations from '../pages/vendor/Reservations';
+import VendorAnalytics from '../pages/vendor/Analytics';
+import VendorSettings from '../pages/vendor/Settings';
+import PatientProfile from '../pages/patient/Profile';
+import PatientSaved from '../pages/patient/Saved';
 import NotFound from '../pages/NotFound';
 import ProtectedRoute from './ProtectedRoute';
 
@@ -37,6 +41,8 @@ function AppRoutes() {
         <Route path="medicine/:id" element={<MedicineDetail />} />
         <Route path="reserve/:medicineId" element={<Reservation />} />
         <Route path="reservations" element={<PatientReservations />} />
+        <Route path="profile" element={<PatientProfile />} />
+        <Route path="saved" element={<PatientSaved />} />
       </Route>
 
       {/* Vendor routes — protected */}
@@ -52,6 +58,8 @@ function AppRoutes() {
         <Route path="dashboard" element={<VendorDashboard />} />
         <Route path="inventory" element={<VendorInventory />} />
         <Route path="reservations" element={<VendorReservations />} />
+        <Route path="analytics" element={<VendorAnalytics />} />
+        <Route path="settings" element={<VendorSettings />} />
       </Route>
 
       {/* 404 catch-all */}

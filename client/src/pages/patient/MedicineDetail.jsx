@@ -278,14 +278,11 @@ function MedicineDetail() {
         setPrices(data.results || []);
 
         if (data.results && data.results.length > 0) {
-          const searchRes = await api.get(`/api/medicines/search?q=&lat=${lat}&lng=${lng}`);
-          const match = searchRes.data.results?.find(
-            (r) => r.medicine.id === id
-          );
-          if (match) {
-            setMedicineName(match.medicine.name);
-            setGenericName(match.medicine.genericName || '');
-            setManufacturer(match.medicine.manufacturer || '');
+          const firstRes = data.results[0];
+          if (firstRes.medicine) {
+            setMedicineName(firstRes.medicine.name);
+            setGenericName(firstRes.medicine.genericName || '');
+            setManufacturer(firstRes.medicine.manufacturer || '');
           }
         }
       } catch (_) {
