@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { gsap } from 'gsap';
 
-const styles = {
+const s = {
   container: {
     display: 'flex',
     minHeight: '100vh',
-    fontFamily: "'Inter', 'Segoe UI', sans-serif",
+    fontFamily: "var(--font-family, 'Inter', sans-serif)",
+    overflow: 'hidden',
   },
   leftPanel: {
     flex: 1,
-    background: 'linear-gradient(135deg, #1D9E75 0%, #17845f 100%)',
+    background: 'linear-gradient(145deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%)',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
@@ -18,41 +21,43 @@ const styles = {
     position: 'relative',
     overflow: 'hidden',
   },
-  leftOverlay: {
+  leftGlow: {
     position: 'absolute',
-    top: '-50%',
-    right: '-30%',
-    width: '500px',
-    height: '500px',
+    top: '20%',
+    left: '30%',
+    width: '300px',
+    height: '300px',
     borderRadius: '50%',
-    background: 'rgba(255,255,255,0.05)',
+    background: 'radial-gradient(circle, rgba(29,158,117,0.15) 0%, transparent 70%)',
     pointerEvents: 'none',
+    filter: 'blur(40px)',
   },
-  leftOverlay2: {
+  leftGlow2: {
     position: 'absolute',
-    bottom: '-40%',
-    left: '-20%',
-    width: '400px',
-    height: '400px',
+    bottom: '10%',
+    right: '20%',
+    width: '200px',
+    height: '200px',
     borderRadius: '50%',
-    background: 'rgba(255,255,255,0.04)',
+    background: 'radial-gradient(circle, rgba(29,158,117,0.1) 0%, transparent 70%)',
     pointerEvents: 'none',
+    filter: 'blur(30px)',
   },
   appName: {
-    fontSize: '3.5rem',
+    fontSize: '3rem',
     fontWeight: 800,
     color: '#fff',
-    letterSpacing: '-1px',
-    marginBottom: '1rem',
+    letterSpacing: '-1.5px',
+    marginBottom: '0.75rem',
     zIndex: 1,
   },
   tagline: {
-    fontSize: '1.2rem',
-    color: 'rgba(255,255,255,0.85)',
+    fontSize: '1.05rem',
+    color: 'rgba(255,255,255,0.55)',
     fontWeight: 400,
     textAlign: 'center',
-    maxWidth: '320px',
-    lineHeight: 1.6,
+    maxWidth: '300px',
+    lineHeight: 1.7,
     zIndex: 1,
   },
   rightPanel: {
@@ -62,77 +67,128 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     padding: '3rem',
-    background: '#fafbfc',
+    background: 'var(--color-bg, #f7f5f2)',
   },
   rightHeading: {
-    fontSize: '1.6rem',
+    fontSize: '1.5rem',
     fontWeight: 700,
-    color: '#1a1a2e',
-    marginBottom: '0.5rem',
+    color: 'var(--color-text-primary, #1a1a1a)',
+    marginBottom: '0.4rem',
+    letterSpacing: '-0.3px',
   },
   rightSubtext: {
-    fontSize: '0.95rem',
-    color: '#6b7280',
+    fontSize: '0.9rem',
+    color: 'var(--color-text-tertiary, #8b8b8b)',
     marginBottom: '2.5rem',
   },
   cardsWrapper: {
     display: 'flex',
-    gap: '1.5rem',
+    gap: '1.25rem',
     marginBottom: '2.5rem',
   },
   card: {
-    width: '200px',
+    width: '210px',
     padding: '2rem 1.5rem',
-    borderRadius: '16px',
-    border: '2px solid #e5e7eb',
-    background: '#fff',
+    borderRadius: 'var(--radius-lg, 16px)',
+    border: '1px solid var(--color-border, #e5e2dc)',
+    background: 'var(--color-bg-elevated, #fff)',
     cursor: 'pointer',
     textAlign: 'center',
-    transition: 'all 0.25s ease',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+    boxShadow: 'var(--shadow-xs)',
   },
   cardSelected: {
-    border: '2px solid #1D9E75',
-    background: '#f0fdf7',
-    boxShadow: '0 4px 16px rgba(29,158,117,0.15)',
-    transform: 'translateY(-2px)',
+    border: '1.5px solid var(--color-primary, #1D9E75)',
+    background: 'var(--color-primary-subtle, #f0fdf7)',
+    boxShadow: '0 4px 16px rgba(29,158,117,0.1)',
   },
   cardIcon: {
-    fontSize: '2.8rem',
-    marginBottom: '0.8rem',
+    fontSize: '2.5rem',
+    marginBottom: '1rem',
+    display: 'block',
   },
   cardTitle: {
-    fontSize: '1.05rem',
-    fontWeight: 600,
-    color: '#1a1a2e',
-  },
-  cardDesc: {
-    fontSize: '0.8rem',
-    color: '#9ca3af',
-    marginTop: '0.4rem',
-  },
-  continueBtn: {
-    padding: '0.85rem 3rem',
     fontSize: '1rem',
     fontWeight: 600,
+    color: 'var(--color-text-primary, #1a1a1a)',
+  },
+  cardDesc: {
+    fontSize: '0.78rem',
+    color: 'var(--color-text-tertiary, #8b8b8b)',
+    marginTop: '0.4rem',
+    lineHeight: 1.5,
+  },
+  continueBtn: {
+    padding: '0.8rem 2.5rem',
+    fontSize: '0.92rem',
+    fontWeight: 600,
     color: '#fff',
-    background: '#1D9E75',
+    background: 'var(--color-primary, #1D9E75)',
     border: 'none',
-    borderRadius: '12px',
+    borderRadius: 'var(--radius-md, 12px)',
     cursor: 'pointer',
-    transition: 'all 0.25s ease',
-    boxShadow: '0 4px 14px rgba(29,158,117,0.3)',
+    letterSpacing: '0.2px',
   },
   continueBtnDisabled: {
-    background: '#d1d5db',
+    background: 'var(--color-border, #e5e2dc)',
+    color: 'var(--color-text-muted, #b0aca6)',
     cursor: 'not-allowed',
-    boxShadow: 'none',
   },
+  hint: {
+    color: 'var(--color-text-muted, #b0aca6)',
+    fontSize: '0.78rem',
+    marginTop: '0.75rem',
+    fontWeight: 500,
+  },
+};
+
+/* Framer Motion variants */
+const cardVariants = {
+  idle: { scale: 1, y: 0 },
+  hover: { scale: 1.03, y: -4, transition: { type: 'spring', stiffness: 400, damping: 20 } },
+  tap: { scale: 0.98, transition: { duration: 0.1 } },
+  selected: { scale: 1.02, y: -3, transition: { type: 'spring', stiffness: 350, damping: 18 } },
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.12, delayChildren: 0.2 },
+  },
+};
+
+const staggerItem = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } },
 };
 
 function RoleSelector() {
   const [selectedRole, setSelectedRole] = useState(null);
   const navigate = useNavigate();
+  const glowRef = useRef(null);
+  const glow2Ref = useRef(null);
+
+  /* GSAP: Floating glow animation on the dark panel */
+  useEffect(() => {
+    if (glowRef.current) {
+      gsap.to(glowRef.current, {
+        x: 30, y: -20,
+        duration: 6,
+        ease: 'sine.inOut',
+        repeat: -1,
+        yoyo: true,
+      });
+    }
+    if (glow2Ref.current) {
+      gsap.to(glow2Ref.current, {
+        x: -25, y: 15,
+        duration: 8,
+        ease: 'sine.inOut',
+        repeat: -1,
+        yoyo: true,
+      });
+    }
+  }, []);
 
   const handleContinue = () => {
     if (selectedRole) {
@@ -141,102 +197,134 @@ function RoleSelector() {
   };
 
   return (
-    <div style={styles.container}>
+    <div style={s.container}>
       {/* Left Panel */}
-      <div style={styles.leftPanel}>
-        <div style={styles.leftOverlay} />
-        <div style={styles.leftOverlay2} />
-        <div style={styles.appName}>MedPrice</div>
-        <div style={styles.tagline}>
+      <motion.div
+        style={s.leftPanel}
+        initial={{ x: -80, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <div ref={glowRef} style={s.leftGlow} />
+        <div ref={glow2Ref} style={s.leftGlow2} />
+        <motion.div
+          style={s.appName}
+          initial={{ y: 30, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.3, duration: 0.6, ease: 'easeOut' }}
+        >
+          MedPrice
+        </motion.div>
+        <motion.div
+          style={s.tagline}
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.5, duration: 0.6, ease: 'easeOut' }}
+        >
           Compare medicine prices across pharmacies. Save money on every prescription.
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Right Panel */}
-      <div style={styles.rightPanel}>
-        <div style={styles.rightHeading}>Welcome! Who are you?</div>
-        <div style={styles.rightSubtext}>Select your role to get started</div>
-
-        <div style={styles.cardsWrapper}>
-          {/* Patient Card */}
-          <div
-            style={{
-              ...styles.card,
-              ...(selectedRole === 'patient' ? styles.cardSelected : {}),
-            }}
-            onClick={() => setSelectedRole('patient')}
-            onMouseEnter={(e) => {
-              if (selectedRole !== 'patient') {
-                e.currentTarget.style.borderColor = '#a7f3d0';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (selectedRole !== 'patient') {
-                e.currentTarget.style.borderColor = '#e5e7eb';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }
-            }}
-          >
-            <div style={styles.cardIcon}>🏥</div>
-            <div style={styles.cardTitle}>I am a Patient</div>
-            <div style={styles.cardDesc}>Search & compare medicine prices</div>
-          </div>
-
-          {/* Pharmacy Card */}
-          <div
-            style={{
-              ...styles.card,
-              ...(selectedRole === 'pharmacy' ? styles.cardSelected : {}),
-            }}
-            onClick={() => setSelectedRole('pharmacy')}
-            onMouseEnter={(e) => {
-              if (selectedRole !== 'pharmacy') {
-                e.currentTarget.style.borderColor = '#a7f3d0';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (selectedRole !== 'pharmacy') {
-                e.currentTarget.style.borderColor = '#e5e7eb';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }
-            }}
-          >
-            <div style={styles.cardIcon}>💊</div>
-            <div style={styles.cardTitle}>I am a Pharmacy</div>
-            <div style={styles.cardDesc}>List your medicines & prices</div>
-          </div>
-        </div>
-
-        <button
-          style={{
-            ...styles.continueBtn,
-            ...(!selectedRole ? styles.continueBtnDisabled : {}),
-          }}
-          disabled={!selectedRole}
-          onClick={handleContinue}
-          onMouseEnter={(e) => {
-            if (selectedRole) {
-              e.currentTarget.style.background = '#178c65';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (selectedRole) {
-              e.currentTarget.style.background = '#1D9E75';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }
-          }}
+      <motion.div
+        style={s.rightPanel}
+        initial={{ x: 80, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <motion.div
+          variants={staggerContainer}
+          initial="hidden"
+          animate="show"
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
         >
-          Continue →
-        </button>
-        {!selectedRole && (
-          <p style={{ color: '#9ca3af', fontSize: '0.8rem', marginTop: '0.5rem' }}>
-            👆 Select a role to proceed
-          </p>
-        )}
-      </div>
+          <motion.div variants={staggerItem} style={s.rightHeading}>
+            Welcome to MedPrice
+          </motion.div>
+          <motion.div variants={staggerItem} style={s.rightSubtext}>
+            Select your role to get started
+          </motion.div>
+
+          <motion.div variants={staggerItem} style={s.cardsWrapper}>
+            {/* Patient Card */}
+            <motion.div
+              style={{
+                ...s.card,
+                ...(selectedRole === 'patient' ? s.cardSelected : {}),
+              }}
+              variants={cardVariants}
+              initial="idle"
+              whileHover="hover"
+              whileTap="tap"
+              animate={selectedRole === 'patient' ? 'selected' : 'idle'}
+              onClick={() => setSelectedRole('patient')}
+            >
+              <motion.span
+                style={s.cardIcon}
+                animate={selectedRole === 'patient' ? { rotate: [0, -10, 10, 0], scale: 1.1 } : { scale: 1 }}
+                transition={{ duration: 0.4 }}
+              >
+                🏥
+              </motion.span>
+              <div style={s.cardTitle}>I am a Patient</div>
+              <div style={s.cardDesc}>Search & compare medicine prices near you</div>
+            </motion.div>
+
+            {/* Pharmacy Card */}
+            <motion.div
+              style={{
+                ...s.card,
+                ...(selectedRole === 'pharmacy' ? s.cardSelected : {}),
+              }}
+              variants={cardVariants}
+              initial="idle"
+              whileHover="hover"
+              whileTap="tap"
+              animate={selectedRole === 'pharmacy' ? 'selected' : 'idle'}
+              onClick={() => setSelectedRole('pharmacy')}
+            >
+              <motion.span
+                style={s.cardIcon}
+                animate={selectedRole === 'pharmacy' ? { rotate: [0, -10, 10, 0], scale: 1.1 } : { scale: 1 }}
+                transition={{ duration: 0.4 }}
+              >
+                💊
+              </motion.span>
+              <div style={s.cardTitle}>I am a Pharmacy</div>
+              <div style={s.cardDesc}>List your medicines & manage inventory</div>
+            </motion.div>
+          </motion.div>
+
+          <motion.div variants={staggerItem}>
+            <motion.button
+              style={{
+                ...s.continueBtn,
+                ...(!selectedRole ? s.continueBtnDisabled : {}),
+              }}
+              disabled={!selectedRole}
+              onClick={handleContinue}
+              whileHover={selectedRole ? { scale: 1.04, backgroundColor: '#178c65' } : {}}
+              whileTap={selectedRole ? { scale: 0.97 } : {}}
+            >
+              Continue →
+            </motion.button>
+          </motion.div>
+
+          <AnimatePresence>
+            {!selectedRole && (
+              <motion.p
+                style={s.hint}
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -5 }}
+                transition={{ duration: 0.3 }}
+              >
+                Select a role above to proceed
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

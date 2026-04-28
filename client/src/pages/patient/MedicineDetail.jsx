@@ -322,6 +322,7 @@ function MedicineDetail() {
   const [medicineName, setMedicineName] = useState('');
   const [genericName, setGenericName] = useState('');
   const [manufacturer, setManufacturer] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchPrices = async () => {

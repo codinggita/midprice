@@ -28,6 +28,20 @@ const addInventory = async (req, res) => {
   try {
     const { medicineId, mrp, sellingPrice, stockQty } = req.body;
 
+    // Validate required fields
+    if (!medicineId) {
+      return res.status(400).json({ message: 'Medicine ID is required' });
+    }
+    if (!mrp || Number(mrp) <= 0) {
+      return res.status(400).json({ message: 'MRP must be greater than 0' });
+    }
+    if (!sellingPrice || Number(sellingPrice) <= 0) {
+      return res.status(400).json({ message: 'Selling price must be greater than 0' });
+    }
+    if (Number(sellingPrice) > Number(mrp)) {
+      return res.status(400).json({ message: 'Selling price cannot exceed MRP' });
+    }
+
     // Find pharmacy owned by this vendor
     const pharmacy = await Pharmacy.findOne({ vendorId: req.user._id });
     if (!pharmacy) {
@@ -37,9 +51,9 @@ const addInventory = async (req, res) => {
     const item = await Inventory.create({
       pharmacyId: pharmacy._id,
       medicineId,
-      mrp,
-      sellingPrice,
-      stockQty,
+      mrp: Number(mrp),
+      sellingPrice: Number(sellingPrice),
+      stockQty: Number(stockQty) || 0,
     });
 
     res.status(201).json(item);

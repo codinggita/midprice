@@ -1,48 +1,60 @@
-/* ========== Patient Layout ========== */
+/* ══════════════════════════════════════════
+   Patient Layout — Premium Redesign
+   ══════════════════════════════════════════ */
+
 .patient-layout {
   display: flex;
   min-height: 100vh;
-  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background: var(--color-bg);
 }
 
-/* ========== Sidebar ========== */
+/* ── Sidebar ── */
 .patient-sidebar {
-  width: 240px;
+  width: var(--sidebar-width);
   min-height: 100vh;
-  background: #fff;
-  border-right: 1px solid #e5e7eb;
+  background: var(--color-bg-elevated);
+  border-right: 1px solid var(--color-border-light);
   display: flex;
   flex-direction: column;
   position: fixed;
   top: 0;
   left: 0;
   z-index: 10;
+  transition: box-shadow var(--transition-base);
 }
 
+.patient-sidebar:hover {
+  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.03);
+}
+
+/* Brand */
 .sidebar-brand {
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid #f3f4f6;
+  padding: 1.5rem 1.5rem 1.25rem;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .sidebar-brand h1 {
-  font-size: 1.4rem;
+  font-size: 1.35rem;
   font-weight: 800;
-  color: #1D9E75;
+  color: var(--color-text-primary);
   margin: 0;
   letter-spacing: -0.5px;
 }
 
 .sidebar-brand span {
-  font-size: 0.7rem;
-  color: #9ca3af;
-  font-weight: 500;
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
+  display: block;
+  margin-top: 0.15rem;
 }
 
+/* Navigation */
 .sidebar-nav {
   flex: 1;
-  padding: 1rem 0;
+  padding: 0.75rem 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -52,58 +64,74 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.75rem 1.5rem;
+  padding: 0.7rem 0.85rem;
   text-decoration: none;
-  color: #6b7280;
-  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
   font-weight: 500;
-  transition: all 0.2s ease;
-  border-left: 3px solid transparent;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  border: none;
+  position: relative;
 }
 
 .sidebar-link:hover {
-  color: #1D9E75;
-  background: #f9fafb;
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
 }
 
 .sidebar-link.active {
-  color: #1D9E75;
-  background: #f0fdf7;
-  border-left-color: #1D9E75;
+  color: var(--color-primary);
+  background: var(--color-primary-light);
   font-weight: 600;
 }
 
-.sidebar-link-icon {
-  font-size: 1.15rem;
-  width: 24px;
-  text-align: center;
+.sidebar-link.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: var(--color-primary);
+  border-radius: 0 4px 4px 0;
 }
 
+.sidebar-link-icon {
+  font-size: 1.1rem;
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* Footer */
 .sidebar-footer {
   padding: 1rem 1.5rem;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--color-border-light);
 }
 
 .sidebar-footer-text {
-  font-size: 0.75rem;
-  color: #d1d5db;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  letter-spacing: 0.3px;
 }
 
-/* ========== Main Area ========== */
+/* ── Main Area ── */
 .patient-main {
   flex: 1;
-  margin-left: 240px;
+  margin-left: var(--sidebar-width);
   display: flex;
   flex-direction: column;
-  background: #f8f9fb;
   min-height: 100vh;
 }
 
-/* ========== Top Header Bar ========== */
+/* ── Top Header Bar ── */
 .patient-header {
-  height: 64px;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  height: 60px;
+  background: var(--color-bg-elevated);
+  border-bottom: 1px solid var(--color-border-light);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -111,60 +139,69 @@
   position: sticky;
   top: 0;
   z-index: 5;
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.85);
 }
 
 .header-title {
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  color: #1a1a2e;
+  color: var(--color-text-primary);
+  letter-spacing: -0.2px;
 }
 
 .header-search {
-  flex: 0 1 400px;
+  flex: 0 1 380px;
 }
 
 .header-search-input {
   width: 100%;
-  padding: 0.55rem 1rem;
-  border-radius: 10px;
-  border: 1.5px solid #e5e7eb;
-  background: #f9fafb;
-  font-size: 0.85rem;
-  color: #374151;
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-subtle);
+  font-size: 0.82rem;
+  font-family: var(--font-family);
+  color: var(--color-text-primary);
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: all var(--transition-base);
 }
 
 .header-search-input::placeholder {
-  color: #9ca3af;
+  color: var(--color-text-muted);
 }
 
 .header-search-input:focus {
-  border-color: #1D9E75;
-  box-shadow: 0 0 0 3px rgba(29, 158, 117, 0.08);
+  border-color: var(--color-primary);
+  background: var(--color-bg-elevated);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
 }
 
+/* Avatar */
 .header-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #1D9E75 0%, #17845f 100%);
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: all var(--transition-fast);
+  letter-spacing: 0.5px;
 }
 
 .header-avatar:hover {
-  transform: scale(1.08);
+  transform: scale(1.06);
+  box-shadow: 0 2px 8px var(--color-primary-glow);
 }
 
-/* ========== Content Area ========== */
+/* ── Content Area ── */
 .patient-content {
   flex: 1;
   padding: 2rem;
+  animation: fadeIn 0.3s ease both;
 }

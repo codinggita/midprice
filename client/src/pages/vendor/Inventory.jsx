@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../lib/api';
 
 const s = {
@@ -57,6 +58,7 @@ function Inventory() {
   const [newMed, setNewMed] = useState({ medicineId: '', mrp: '', sellingPrice: '', stockQty: '' });
   const [medicinesList, setMedicinesList] = useState([]);
   const [medSearch, setMedSearch] = useState('');
+  const [selectedMedName, setSelectedMedName] = useState('');
 
   const fetchInventory = async () => {
     try {
@@ -103,13 +105,15 @@ function Inventory() {
 
   const updateNew = (field, val) => setNewMed((p) => ({ ...p, [field]: val }));
 
+  const canSave = newMed.medicineId && Number(newMed.mrp) > 0 && Number(newMed.sellingPrice) > 0 && Number(newMed.stockQty) > 0;
+
   const saveNew = async () => {
-    if (!newMed.medicineId) return;
+    if (!canSave) return;
     setSaving(true); setError('');
     try {
-      await api.post('/api/vendor/inventory', { medicineId: newMed.medicineId, mrp: Number(newMed.mrp) || 0, sellingPrice: Number(newMed.sellingPrice) || 0, stockQty: Number(newMed.stockQty) || 0 });
+      await api.post('/api/vendor/inventory', { medicineId: newMed.medicineId, mrp: Number(newMed.mrp), sellingPrice: Number(newMed.sellingPrice), stockQty: Number(newMed.stockQty) });
       setNewMed({ medicineId: '', mrp: '', sellingPrice: '', stockQty: '' });
-      setMedSearch('');
+      setMedSearch(''); setSelectedMedName('');
       setShowModal(false); fetchInventory();
     } catch (err) { setError(err.response?.data?.message || 'Add failed'); }
     finally { setSaving(false); }
@@ -117,14 +121,40 @@ function Inventory() {
 
   const newSavings = newMed.mrp && newMed.sellingPrice ? Number(newMed.mrp) - Number(newMed.sellingPrice) : 0;
 
-  if (loading) return <div style={s.loading}>⏳ Loading inventory...</div>;
+  if (loading) return (
+    <motion.div
+      style={s.loading}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      Loading inventory...
+    </motion.div>
+  );
 
   return (
-    <div style={s.page}>
-      <div style={s.topBar}>
+    <motion.div
+      style={s.page}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.35 }}
+    >
+      <motion.div
+        style={s.topBar}
+        initial={{ y: -10, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.4 }}
+      >
         <input style={s.searchInput} type="text" placeholder="Search medicines..." value={search} onChange={(e) => setSearch(e.target.value)} onFocus={(e) => (e.target.style.borderColor = '#1D9E75')} onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')} />
-        <button style={s.addBtn} onClick={() => setShowModal(true)} onMouseEnter={(e) => (e.currentTarget.style.background = '#178c65')} onMouseLeave={(e) => (e.currentTarget.style.background = '#1D9E75')}>+ Add Medicine</button>
-      </div>
+        <motion.button
+          style={s.addBtn}
+          onClick={() => setShowModal(true)}
+          whileHover={{ scale: 1.04, backgroundColor: '#178c65' }}
+          whileTap={{ scale: 0.96 }}
+        >
+          + Add Medicine
+        </motion.button>
+      </motion.div>
 
       {error && <div style={s.error}>⚠️ {error}</div>}
 
@@ -161,37 +191,85 @@ function Inventory() {
         </table>
       </div>
 
-      {showModal && (
-        <div style={s.overlay} onClick={() => setShowModal(false)}>
-          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={s.modalTitle}>Add New Medicine</div>
-            <div style={s.formGrid}>
-              <div style={s.formGroupFull}>
-                <label style={s.formLabel}>Medicine</label>
-                <input style={s.formInput} placeholder="Search medicine..." value={medSearch} onChange={(e) => { setMedSearch(e.target.value); updateNew('medicineId', ''); }} />
-                {medSearch && !newMed.medicineId && (
-                  <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px', marginTop: '0.5rem', background: '#fff' }}>
-                    {medicinesList.map(m => (
-                      <div key={m._id} style={{ padding: '0.5rem', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', fontSize: '0.85rem' }} onClick={() => { updateNew('medicineId', m._id); setMedSearch(`${m.name} (${m.dosage})`); }}>
-                        <span style={{ fontWeight: 600 }}>{m.name}</span> ({m.dosage}) <span style={{ color: '#9ca3af' }}>— {m.manufacturer}</span>
-                      </div>
-                    ))}
-                    {medicinesList.length === 0 && <div style={{ padding: '0.5rem', color: '#9ca3af', fontSize: '0.85rem' }}>No medicines found</div>}
-                  </div>
-                )}
+      <AnimatePresence>
+        {showModal && (
+          <motion.div
+            style={s.overlay}
+            onClick={() => setShowModal(false)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <motion.div
+              style={s.modal}
+              onClick={(e) => e.stopPropagation()}
+              initial={{ scale: 0.92, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 20 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+            >
+              <div style={s.modalTitle}>Add New Medicine</div>
+              <div style={s.formGrid}>
+                <div style={s.formGroupFull}>
+                  <label style={s.formLabel}>Medicine</label>
+                  {selectedMedName ? (
+                    <motion.div
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 0.9rem', borderRadius: '10px', border: '1.5px solid #1D9E75', background: '#f0fdf7', fontSize: '0.9rem' }}
+                      initial={{ scale: 0.95, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                    >
+                      <span style={{ flex: 1, fontWeight: 600, color: '#1D9E75' }}>✓ {selectedMedName}</span>
+                      <button style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 700, fontSize: '1rem' }} onClick={() => { setSelectedMedName(''); updateNew('medicineId', ''); setMedSearch(''); }}>✕</button>
+                    </motion.div>
+                  ) : (
+                    <>
+                      <input style={s.formInput} placeholder="Search medicine by name..." value={medSearch} onChange={(e) => { setMedSearch(e.target.value); updateNew('medicineId', ''); }} />
+                      {medSearch && (
+                        <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px', marginTop: '0.5rem', background: '#fff' }}>
+                          {medicinesList.map(m => (
+                            <div key={m._id} style={{ padding: '0.5rem', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', fontSize: '0.85rem' }}
+                              onMouseEnter={(e) => { e.currentTarget.style.background = '#f0fdf7'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; }}
+                              onClick={() => { updateNew('medicineId', m._id); setSelectedMedName(`${m.name} (${m.dosage})`); setMedSearch(''); }}>
+                              <span style={{ fontWeight: 600 }}>{m.name}</span> ({m.dosage}) <span style={{ color: '#9ca3af' }}>— {m.manufacturer}</span>
+                            </div>
+                          ))}
+                          {medicinesList.length === 0 && <div style={{ padding: '0.5rem', color: '#9ca3af', fontSize: '0.85rem' }}>No medicines found</div>}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div style={s.formGroup}><label style={s.formLabel}>MRP (₹)</label><input style={s.formInput} type="number" placeholder="150" value={newMed.mrp} onChange={(e) => updateNew('mrp', e.target.value)} /></div>
+                <div style={s.formGroup}><label style={s.formLabel}>Your Price (₹)</label><input style={s.formInput} type="number" placeholder="95" value={newMed.sellingPrice} onChange={(e) => updateNew('sellingPrice', e.target.value)} />{newSavings > 0 && <div style={s.savingsHint}>Saving customers ₹{newSavings}</div>}</div>
+                <div style={s.formGroupFull}><label style={s.formLabel}>Stock Quantity</label><input style={s.formInput} type="number" placeholder="100" value={newMed.stockQty} onChange={(e) => updateNew('stockQty', e.target.value)} /></div>
               </div>
-              <div style={s.formGroup}><label style={s.formLabel}>MRP (₹)</label><input style={s.formInput} type="number" placeholder="150" value={newMed.mrp} onChange={(e) => updateNew('mrp', e.target.value)} /></div>
-              <div style={s.formGroup}><label style={s.formLabel}>Your Price (₹)</label><input style={s.formInput} type="number" placeholder="95" value={newMed.sellingPrice} onChange={(e) => updateNew('sellingPrice', e.target.value)} />{newSavings > 0 && <div style={s.savingsHint}>Saving customers ₹{newSavings}</div>}</div>
-              <div style={s.formGroupFull}><label style={s.formLabel}>Stock Quantity</label><input style={s.formInput} type="number" placeholder="100" value={newMed.stockQty} onChange={(e) => updateNew('stockQty', e.target.value)} /></div>
-            </div>
-            <div style={s.modalActions}>
-              <button style={s.modalCancelBtn} onClick={() => setShowModal(false)}>Cancel</button>
-              <button style={{ ...s.modalSaveBtn, ...(!newMed.medicineId || saving ? { background: '#d1d5db', cursor: 'not-allowed', boxShadow: 'none' } : {}) }} disabled={!newMed.medicineId || saving} onClick={saveNew}>{saving ? 'Saving...' : 'Save Medicine'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+              <div style={s.modalActions}>
+                <motion.button
+                  style={s.modalCancelBtn}
+                  onClick={() => { setShowModal(false); setSelectedMedName(''); setMedSearch(''); setNewMed({ medicineId: '', mrp: '', sellingPrice: '', stockQty: '' }); }}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  style={{ ...s.modalSaveBtn, ...(!canSave || saving ? { background: '#d1d5db', cursor: 'not-allowed', boxShadow: 'none' } : {}) }}
+                  disabled={!canSave || saving}
+                  onClick={saveNew}
+                  whileHover={canSave && !saving ? { scale: 1.03, backgroundColor: '#178c65' } : {}}
+                  whileTap={canSave && !saving ? { scale: 0.97 } : {}}
+                >
+                  {saving ? 'Saving...' : 'Save Medicine'}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
