@@ -1,277 +1,215 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
 import api from '../../lib/api';
-import { AlertTriangle, Check, X, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, Package } from 'lucide-react';
 
-const s = {
-  page: { maxWidth: '1020px' },
-  topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' },
-  searchInput: { flex: '0 1 360px', padding: '0.7rem 1rem', borderRadius: '12px', border: '2px solid #e5e7eb', fontSize: '0.9rem', outline: 'none', transition: 'border-color 0.2s ease' },
-  addBtn: { padding: '0.7rem 1.4rem', borderRadius: '12px', border: 'none', background: '#1D9E75', color: '#fff', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', transition: 'background 0.2s ease', boxShadow: '0 4px 14px rgba(29,158,117,0.25)', whiteSpace: 'nowrap' },
-  tableWrap: { background: '#fff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', border: '1px solid #f3f4f6' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' },
-  th: { padding: '0.8rem 0.75rem', textAlign: 'left', fontWeight: 700, color: '#374151', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #f3f4f6', background: '#fafbfc' },
-  td: { padding: '0.75rem', borderBottom: '1px solid #f3f4f6', color: '#374151', verticalAlign: 'middle' },
-  medName: { fontWeight: 600, color: '#1a1a2e' },
-  price: { fontWeight: 700, color: '#1D9E75' },
-  mrpStyle: { color: '#9ca3af' },
-  badgeListed: { display: 'inline-block', padding: '0.18rem 0.55rem', borderRadius: '8px', background: '#d1fae5', color: '#065f46', fontSize: '0.72rem', fontWeight: 600 },
-  badgeUnlisted: { display: 'inline-block', padding: '0.18rem 0.55rem', borderRadius: '8px', background: '#f3f4f6', color: '#6b7280', fontSize: '0.72rem', fontWeight: 600 },
-  badgeOos: { display: 'inline-block', padding: '0.18rem 0.55rem', borderRadius: '8px', background: '#fee2e2', color: '#991b1b', fontSize: '0.72rem', fontWeight: 600 },
-  actionRow: { display: 'flex', gap: '0.35rem' },
-  iconBtn: { width: '32px', height: '32px', borderRadius: '8px', border: '1.5px solid #e5e7eb', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', transition: 'all 0.15s ease' },
-  saveBtn: { width: '32px', height: '32px', borderRadius: '8px', border: 'none', background: '#1D9E75', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.95rem', fontWeight: 700 },
-  cancelEditBtn: { width: '32px', height: '32px', borderRadius: '8px', border: '1.5px solid #e5e7eb', background: '#fff', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.95rem', fontWeight: 700 },
-  inlineInput: { width: '70px', padding: '0.35rem 0.5rem', borderRadius: '8px', border: '2px solid #1D9E75', fontSize: '0.85rem', fontWeight: 600, outline: 'none', textAlign: 'center' },
-  loading: { textAlign: 'center', padding: '3rem', color: '#1D9E75', fontSize: '1rem', fontWeight: 600 },
-  empty: { textAlign: 'center', padding: '2rem', color: '#9ca3af', fontSize: '0.9rem' },
-  error: { color: '#ef4444', fontSize: '0.85rem', fontWeight: 500, marginBottom: '1rem' },
-  overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
-  modal: { background: '#fff', borderRadius: '20px', width: '600px', maxHeight: '90vh', overflowY: 'auto', padding: '2rem', boxShadow: '0 24px 48px rgba(0,0,0,0.12)' },
-  modalTitle: { fontSize: '1.3rem', fontWeight: 800, color: '#1a1a2e', marginBottom: '1.5rem' },
-  formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' },
-  formGroup: { display: 'flex', flexDirection: 'column', gap: '0.3rem' },
-  formGroupFull: { display: 'flex', flexDirection: 'column', gap: '0.3rem', gridColumn: '1 / -1' },
-  formLabel: { fontSize: '0.8rem', fontWeight: 600, color: '#374151' },
-  formInput: { padding: '0.65rem 0.9rem', borderRadius: '10px', border: '1.5px solid #e5e7eb', fontSize: '0.9rem', outline: 'none', transition: 'border-color 0.2s ease' },
-  savingsHint: { fontSize: '0.8rem', fontWeight: 600, color: '#22c55e', marginTop: '0.25rem' },
-  modalActions: { display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' },
-  modalSaveBtn: { padding: '0.7rem 1.5rem', borderRadius: '12px', border: 'none', background: '#1D9E75', color: '#fff', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(29,158,117,0.25)' },
-  modalCancelBtn: { padding: '0.7rem 1.5rem', borderRadius: '12px', border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' },
-};
-
-const getStatus = (item) => {
-  if (!item.isListed) return { text: 'Unlisted', badge: s.badgeUnlisted };
-  if (item.stockQty <= 0) return { text: 'Out of Stock', badge: s.badgeOos };
-  return { text: 'Listed', badge: s.badgeListed };
-};
-
-function Inventory() {
-  const [inventory, setInventory] = useState([]);
+export default function VendorInventory() {
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
-  const [editingId, setEditingId] = useState(null);
-  const [editPrice, setEditPrice] = useState('');
-  const [editStock, setEditStock] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [newMed, setNewMed] = useState({ medicineId: '', mrp: '', sellingPrice: '', stockQty: '' });
-  const [medicinesList, setMedicinesList] = useState([]);
-  const [medSearch, setMedSearch] = useState('');
-  const [selectedMedName, setSelectedMedName] = useState('');
 
-  const fetchInventory = async () => {
+  // Add form
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ medicineName: '', price: '', stockQty: '' });
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState('');
+
+  // Inline edit
+  const [editId, setEditId] = useState(null);
+  const [editData, setEditData] = useState({ price: '', stockQty: '' });
+
+  const load = () => {
+    setLoading(true);
+    api.get('/api/vendor/inventory')
+      .then(r => setItems(r.data.inventory || []))
+      .catch(() => setError('Failed to load medicines.'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    setAddError('');
+    if (!form.medicineName.trim()) return setAddError('Medicine name required.');
+    if (!form.price || Number(form.price) <= 0) return setAddError('Price must be greater than 0.');
+    setAdding(true);
     try {
-      const { data } = await api.get('/api/vendor/inventory');
-      setInventory(data.inventory || []);
-      setError('');
+      await api.post('/api/vendor/inventory', {
+        medicineName: form.medicineName.trim(),
+        price: Number(form.price),
+        stockQty: Number(form.stockQty) || 0,
+      });
+      setForm({ medicineName: '', price: '', stockQty: '' });
+      setShowAdd(false);
+      load();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load inventory');
+      setAddError(err.response?.data?.message || 'Failed to add.');
     } finally {
-      setLoading(false);
+      setAdding(false);
     }
   };
 
-  useEffect(() => { fetchInventory(); }, []);
-
-  useEffect(() => {
-    const fetchMedicines = async () => {
-      try {
-        const { data } = await api.get(`/api/medicines/list?q=${medSearch}`);
-        setMedicinesList(data.medicines || []);
-      } catch (err) { }
-    };
-    if (showModal) fetchMedicines();
-  }, [medSearch, showModal]);
-
-  const filtered = useMemo(() =>
-    inventory.filter((item) => (item.medicineId?.name || '').toLowerCase().includes(search.toLowerCase())),
-    [inventory, search]);
-
-  const startEdit = (item) => { setEditingId(item._id); setEditPrice(String(item.sellingPrice)); setEditStock(String(item.stockQty)); };
-
-  const saveEdit = async (id) => {
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this medicine from your inventory?')) return;
     try {
-      await api.patch(`/api/vendor/inventory/${id}`, { sellingPrice: Number(editPrice), stockQty: Number(editStock) });
-      setEditingId(null);
-      fetchInventory();
-    } catch (err) { setError(err.response?.data?.message || 'Update failed'); }
+      await api.delete(`/api/vendor/inventory/${id}`);
+      setItems(prev => prev.filter(i => i._id !== id));
+    } catch {
+      alert('Failed to delete.');
+    }
   };
 
-  const deleteMed = async (id) => {
-    try { await api.delete(`/api/vendor/inventory/${id}`); fetchInventory(); }
-    catch (err) { setError(err.response?.data?.message || 'Delete failed'); }
+  const startEdit = (item) => {
+    setEditId(item._id);
+    setEditData({ price: item.sellingPrice, stockQty: item.stockQty });
   };
 
-  const updateNew = (field, val) => setNewMed((p) => ({ ...p, [field]: val }));
-
-  const canSave = newMed.medicineId && Number(newMed.mrp) > 0 && Number(newMed.sellingPrice) > 0 && Number(newMed.stockQty) > 0;
-
-  const saveNew = async () => {
-    if (!canSave) return;
-    setSaving(true); setError('');
+  const saveEdit = async () => {
     try {
-      await api.post('/api/vendor/inventory', { medicineId: newMed.medicineId, mrp: Number(newMed.mrp), sellingPrice: Number(newMed.sellingPrice), stockQty: Number(newMed.stockQty) });
-      setNewMed({ medicineId: '', mrp: '', sellingPrice: '', stockQty: '' });
-      setMedSearch(''); setSelectedMedName('');
-      setShowModal(false); fetchInventory();
-    } catch (err) { setError(err.response?.data?.message || 'Add failed'); }
-    finally { setSaving(false); }
+      const { data } = await api.patch(`/api/vendor/inventory/${editId}`, {
+        price: Number(editData.price),
+        stockQty: Number(editData.stockQty),
+      });
+      setItems(prev => prev.map(i => i._id === editId ? data : i));
+      setEditId(null);
+    } catch {
+      alert('Failed to save.');
+    }
   };
-
-  const newSavings = newMed.mrp && newMed.sellingPrice ? Number(newMed.mrp) - Number(newMed.sellingPrice) : 0;
-
-  if (loading) return (
-    <motion.div
-      style={s.loading}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
-      Loading inventory...
-    </motion.div>
-  );
 
   return (
-    <motion.div
-      style={s.page}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.35 }}
-    >
-      <motion.div
-        style={s.topBar}
-        initial={{ y: -10, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.4 }}
-      >
-        <input style={s.searchInput} type="text" placeholder="Search medicines..." value={search} onChange={(e) => setSearch(e.target.value)} onFocus={(e) => (e.target.style.borderColor = '#1D9E75')} onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')} />
-        <motion.button
-          style={s.addBtn}
-          onClick={() => setShowModal(true)}
-          whileHover={{ scale: 1.04, backgroundColor: '#178c65' }}
-          whileTap={{ scale: 0.96 }}
-        >
-          + Add Medicine
-        </motion.button>
-      </motion.div>
-
-      {error && <div style={{...s.error, display: 'flex', alignItems: 'center', gap: '6px'}}><AlertTriangle size={16} /> {error}</div>}
-
-      <div style={s.tableWrap}>
-        <table style={s.table}>
-          <thead><tr><th style={s.th}>Medicine</th><th style={s.th}>Dosage</th><th style={s.th}>Pack</th><th style={s.th}>MRP</th><th style={s.th}>Your Price</th><th style={s.th}>Stock</th><th style={s.th}>Status</th><th style={s.th}>Actions</th></tr></thead>
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr><td colSpan={8} style={s.empty}>No medicines found. Add your first medicine!</td></tr>
-            ) : (
-              filtered.map((item) => {
-                const isEditing = editingId === item._id;
-                const med = item.medicineId || {};
-                const st = getStatus(item);
-                return (
-                  <tr key={item._id}>
-                    <td style={{ ...s.td, ...s.medName }}>{med.name || 'Unknown'}</td>
-                    <td style={s.td}>{med.dosage || '-'}</td>
-                    <td style={s.td}>{med.packSize || '-'}</td>
-                    <td style={{ ...s.td, ...s.mrpStyle }}>₹{item.mrp}</td>
-                    <td style={s.td}>{isEditing ? <input style={s.inlineInput} type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} /> : <span style={s.price}>₹{item.sellingPrice}</span>}</td>
-                    <td style={s.td}>{isEditing ? <input style={s.inlineInput} type="number" value={editStock} onChange={(e) => setEditStock(e.target.value)} /> : item.stockQty}</td>
-                    <td style={s.td}><span style={st.badge}>{st.text}</span></td>
-                    <td style={s.td}>
-                      <div style={s.actionRow}>
-                        {isEditing ? (<><button style={s.saveBtn} onClick={() => saveEdit(item._id)} title="Save"><Check size={16} /></button><button style={s.cancelEditBtn} onClick={() => setEditingId(null)} title="Cancel"><X size={16} /></button></>) : (<><button style={s.iconBtn} onClick={() => startEdit(item)} title="Edit"><Edit2 size={16} /></button><button style={s.iconBtn} onClick={() => deleteMed(item._id)} title="Delete"><Trash2 size={16} color="#ef4444" /></button></>)}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+    <div>
+      {/* Header */}
+      <div style={s.pageHeader}>
+        <div>
+          <h1 style={s.title}>My Medicines</h1>
+          <p style={s.sub}>{items.length} medicine{items.length !== 1 ? 's' : ''} in your inventory</p>
+        </div>
+        <button style={s.addBtn} onClick={() => { setShowAdd(!showAdd); setAddError(''); }}>
+          <Plus size={16} /> Add Medicine
+        </button>
       </div>
 
-      <AnimatePresence>
-        {showModal && (
-          <motion.div
-            style={s.overlay}
-            onClick={() => setShowModal(false)}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <motion.div
-              style={s.modal}
-              onClick={(e) => e.stopPropagation()}
-              initial={{ scale: 0.92, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.92, opacity: 0, y: 20 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-            >
-              <div style={s.modalTitle}>Add New Medicine</div>
-              <div style={s.formGrid}>
-                <div style={s.formGroupFull}>
-                  <label style={s.formLabel}>Medicine</label>
-                  {selectedMedName ? (
-                    <motion.div
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 0.9rem', borderRadius: '10px', border: '1.5px solid #1D9E75', background: '#f0fdf7', fontSize: '0.9rem' }}
-                      initial={{ scale: 0.95, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                    >
-                      <span style={{ flex: 1, fontWeight: 600, color: '#1D9E75', display: 'flex', alignItems: 'center', gap: '4px' }}><Check size={16} /> {selectedMedName}</span>
-                      <button style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 700, fontSize: '1rem', display: 'flex', alignItems: 'center' }} onClick={() => { setSelectedMedName(''); updateNew('medicineId', ''); setMedSearch(''); }}><X size={16} strokeWidth={3} /></button>
-                    </motion.div>
-                  ) : (
-                    <>
-                      <input style={s.formInput} placeholder="Search medicine by name..." value={medSearch} onChange={(e) => { setMedSearch(e.target.value); updateNew('medicineId', ''); }} />
-                      {medSearch && (
-                        <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px', marginTop: '0.5rem', background: '#fff' }}>
-                          {medicinesList.map(m => (
-                            <div key={m._id} style={{ padding: '0.5rem', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', fontSize: '0.85rem' }}
-                              onMouseEnter={(e) => { e.currentTarget.style.background = '#f0fdf7'; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; }}
-                              onClick={() => { updateNew('medicineId', m._id); setSelectedMedName(`${m.name} (${m.dosage})`); setMedSearch(''); }}>
-                              <span style={{ fontWeight: 600 }}>{m.name}</span> ({m.dosage}) <span style={{ color: '#9ca3af' }}>— {m.manufacturer}</span>
-                            </div>
-                          ))}
-                          {medicinesList.length === 0 && <div style={{ padding: '0.5rem', color: '#9ca3af', fontSize: '0.85rem' }}>No medicines found</div>}
-                        </div>
-                      )}
-                    </>
-                  )}
+      {/* Add Form */}
+      {showAdd && (
+        <form onSubmit={handleAdd} style={s.addForm}>
+          <div style={s.addFormTitle}>Add New Medicine</div>
+          <div style={s.formGrid}>
+            <input
+              style={s.input}
+              placeholder="Medicine name (e.g. Paracetamol 500mg)"
+              value={form.medicineName}
+              onChange={e => setForm(p => ({ ...p, medicineName: e.target.value }))}
+            />
+            <input
+              style={s.input}
+              type="number"
+              placeholder="Price (₹)"
+              value={form.price}
+              onChange={e => setForm(p => ({ ...p, price: e.target.value }))}
+              min="0"
+            />
+            <input
+              style={s.input}
+              type="number"
+              placeholder="Stock qty"
+              value={form.stockQty}
+              onChange={e => setForm(p => ({ ...p, stockQty: e.target.value }))}
+              min="0"
+            />
+          </div>
+          {addError && <div style={s.errMsg}>{addError}</div>}
+          <div style={s.formActions}>
+            <button type="submit" style={s.saveBtn} disabled={adding}>{adding ? 'Adding...' : 'Add Medicine'}</button>
+            <button type="button" style={s.cancelBtn} onClick={() => { setShowAdd(false); setAddError(''); }}>Cancel</button>
+          </div>
+        </form>
+      )}
+
+      {/* List */}
+      {loading ? (
+        <div style={s.center}><div style={s.spinner} /></div>
+      ) : error ? (
+        <div style={s.errBanner}>{error} <button style={s.retryLink} onClick={load}>Retry</button></div>
+      ) : items.length === 0 ? (
+        <div style={s.empty}>
+          <Package size={40} color="#d1d5db" />
+          <div>No medicines added yet.</div>
+          <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Click "Add Medicine" to get started.</div>
+        </div>
+      ) : (
+        <div style={s.list}>
+          {items.map(item => (
+            <div key={item._id} style={{ ...s.row, ...(item.stockQty === 0 ? s.rowOos : {}) }}>
+              <div style={s.rowLeft}>
+                <div style={{ ...s.dot, background: item.stockQty > 5 ? '#22c55e' : item.stockQty > 0 ? '#f59e0b' : '#ef4444' }} />
+                <div>
+                  <div style={s.medName}>{item.medicineId?.name}</div>
+                  <div style={s.medQty}>Stock: {item.stockQty} {item.stockQty === 0 && <span style={s.oosBadge}>Out of Stock</span>}</div>
                 </div>
-                <div style={s.formGroup}><label style={s.formLabel}>MRP (₹)</label><input style={s.formInput} type="number" placeholder="150" value={newMed.mrp} onChange={(e) => updateNew('mrp', e.target.value)} /></div>
-                <div style={s.formGroup}><label style={s.formLabel}>Your Price (₹)</label><input style={s.formInput} type="number" placeholder="95" value={newMed.sellingPrice} onChange={(e) => updateNew('sellingPrice', e.target.value)} />{newSavings > 0 && <div style={s.savingsHint}>Saving customers ₹{newSavings}</div>}</div>
-                <div style={s.formGroupFull}><label style={s.formLabel}>Stock Quantity</label><input style={s.formInput} type="number" placeholder="100" value={newMed.stockQty} onChange={(e) => updateNew('stockQty', e.target.value)} /></div>
               </div>
-              <div style={s.modalActions}>
-                <motion.button
-                  style={s.modalCancelBtn}
-                  onClick={() => { setShowModal(false); setSelectedMedName(''); setMedSearch(''); setNewMed({ medicineId: '', mrp: '', sellingPrice: '', stockQty: '' }); }}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  Cancel
-                </motion.button>
-                <motion.button
-                  style={{ ...s.modalSaveBtn, ...(!canSave || saving ? { background: '#d1d5db', cursor: 'not-allowed', boxShadow: 'none' } : {}) }}
-                  disabled={!canSave || saving}
-                  onClick={saveNew}
-                  whileHover={canSave && !saving ? { scale: 1.03, backgroundColor: '#178c65' } : {}}
-                  whileTap={canSave && !saving ? { scale: 0.97 } : {}}
-                >
-                  {saving ? 'Saving...' : 'Save Medicine'}
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+
+              {editId === item._id ? (
+                <div style={s.editRow}>
+                  <input style={s.miniInput} type="number" value={editData.price} onChange={e => setEditData(p => ({ ...p, price: e.target.value }))} placeholder="Price" />
+                  <input style={s.miniInput} type="number" value={editData.stockQty} onChange={e => setEditData(p => ({ ...p, stockQty: e.target.value }))} placeholder="Qty" />
+                  <button style={s.iconBtn('#1D9E75')} onClick={saveEdit}><Check size={15} /></button>
+                  <button style={s.iconBtn('#6b7280')} onClick={() => setEditId(null)}><X size={15} /></button>
+                </div>
+              ) : (
+                <div style={s.rowRight}>
+                  <div style={s.price}>₹{item.sellingPrice}</div>
+                  <button style={s.iconBtn('#3b82f6')} title="Edit" onClick={() => startEdit(item)}><Edit2 size={15} /></button>
+                  <button style={s.iconBtn('#ef4444')} title="Delete" onClick={() => handleDelete(item._id)}><Trash2 size={15} /></button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
-export default Inventory;
+const iconBtn = (color) => ({
+  width: '30px', height: '30px', borderRadius: '8px', border: 'none',
+  background: `${color}15`, color, cursor: 'pointer', display: 'flex',
+  alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+});
+
+const s = {
+  center: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px' },
+  spinner: { width: '26px', height: '26px', border: '3px solid #e5e7eb', borderTop: '3px solid #1D9E75', borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
+  pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' },
+  title: { fontSize: '1.5rem', fontWeight: 800, color: '#111827', margin: 0, letterSpacing: '-0.3px' },
+  sub: { fontSize: '0.82rem', color: '#9ca3af', margin: '2px 0 0' },
+  addBtn: { display: 'flex', alignItems: 'center', gap: '6px', padding: '0.6rem 1.1rem', background: '#1D9E75', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer' },
+
+  addForm: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: '14px', padding: '1.25rem', marginBottom: '1.25rem' },
+  addFormTitle: { fontWeight: 700, fontSize: '0.95rem', color: '#111827', marginBottom: '0.85rem' },
+  formGrid: { display: 'flex', gap: '0.75rem', flexWrap: 'wrap' },
+  input: { flex: '1 1 160px', padding: '0.6rem 0.85rem', border: '1.5px solid #e5e7eb', borderRadius: '9px', fontSize: '0.875rem', outline: 'none', fontFamily: 'inherit', color: '#111827' },
+  errMsg: { marginTop: '0.5rem', color: '#ef4444', fontSize: '0.82rem', fontWeight: 500 },
+  formActions: { display: 'flex', gap: '0.6rem', marginTop: '0.85rem' },
+  saveBtn: { padding: '0.55rem 1.2rem', background: '#1D9E75', color: '#fff', border: 'none', borderRadius: '9px', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' },
+  cancelBtn: { padding: '0.55rem 1.2rem', background: '#fff', color: '#6b7280', border: '1.5px solid #e5e7eb', borderRadius: '9px', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' },
+
+  errBanner: { background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '0.85rem 1rem', color: '#ef4444', fontSize: '0.875rem' },
+  retryLink: { background: 'none', border: 'none', color: '#ef4444', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600 },
+
+  empty: { textAlign: 'center', padding: '3rem', color: '#6b7280', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' },
+
+  list: { display: 'flex', flexDirection: 'column', gap: '6px' },
+  row: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '0.85rem 1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' },
+  rowOos: { opacity: 0.7, borderStyle: 'dashed' },
+  rowLeft: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 },
+  dot: { width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0 },
+  medName: { fontWeight: 600, fontSize: '0.9rem', color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  medQty: { fontSize: '0.75rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '1px' },
+  oosBadge: { background: '#fef2f2', color: '#ef4444', padding: '0.1rem 0.4rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600 },
+  rowRight: { display: 'flex', alignItems: 'center', gap: '8px' },
+  price: { fontWeight: 700, fontSize: '1rem', color: '#1D9E75', minWidth: '55px', textAlign: 'right' },
+  editRow: { display: 'flex', alignItems: 'center', gap: '6px' },
+  miniInput: { width: '70px', padding: '0.4rem 0.5rem', border: '1.5px solid #e5e7eb', borderRadius: '8px', fontSize: '0.82rem', outline: 'none', textAlign: 'center' },
+  iconBtn,
+};

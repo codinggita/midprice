@@ -1,231 +1,140 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import api from '../../lib/api';
 import useAuthStore from '../../store/authStore';
-import { useNavigate } from 'react-router-dom';
-import { Settings as SettingsIcon, User, Phone, Shield, LogOut, Bell, Clock, MapPin, Store, ChevronRight, Moon, Sun, Save } from 'lucide-react';
+import { MapPin, Clock, Save, Navigation } from 'lucide-react';
 
-function Settings() {
-  const user = useAuthStore(state => state.user);
-  const logout = useAuthStore(state => state.logout);
-  const navigate = useNavigate();
-  const [darkMode, setDarkMode] = useState(false);
-  const [notifications, setNotifications] = useState(true);
-  const [autoAccept, setAutoAccept] = useState(false);
+export default function VendorSettings() {
+  const user = useAuthStore(s => s.user);
+  const [form, setForm] = useState({ name: '', address: '', hours: '', lat: '', lng: '' });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
 
-  const handleLogout = () => {
-    logout();
-    navigate('/auth/select-role');
+  useEffect(() => {
+    api.get('/api/vendor/pharmacy')
+      .then(r => setForm({
+        name:    r.data.name    || '',
+        address: r.data.address || '',
+        hours:   r.data.hours   || '',
+        lat:     r.data.lat     || '',
+        lng:     r.data.lng     || '',
+      }))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) return setErr('Geolocation not supported by your browser.');
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setForm(p => ({ ...p, lat: pos.coords.latitude.toFixed(6), lng: pos.coords.longitude.toFixed(6) }));
+        setLocating(false);
+        setMsg('Location fetched! Save to apply.');
+      },
+      () => { setErr('Could not get location. Please allow location access.'); setLocating(false); }
+    );
   };
 
-  const initials = (user?.name || 'P').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setMsg(''); setErr('');
+    if (!form.name.trim()) return setErr('Shop name is required.');
+    setSaving(true);
+    try {
+      await api.put('/api/vendor/pharmacy', {
+        name:    form.name.trim(),
+        address: form.address.trim(),
+        hours:   form.hours.trim(),
+        lat:     form.lat !== '' ? Number(form.lat) : undefined,
+        lng:     form.lng !== '' ? Number(form.lng) : undefined,
+      });
+      setMsg('Shop profile saved successfully!');
+    } catch (e) {
+      setErr(e.response?.data?.message || 'Save failed.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div style={s.center}><div style={s.spinner} /></div>;
 
   return (
-    <div style={s.page}>
-      {/* Page Header */}
+    <div>
       <div style={s.pageHeader}>
-        <div style={s.pageHeaderIcon}><SettingsIcon size={24} /></div>
-        <div>
-          <div style={s.pageTitle}>Settings</div>
-          <div style={s.pageSubtitle}>Manage your pharmacy account and preferences</div>
-        </div>
+        <h1 style={s.title}>Shop Setup</h1>
+        <p style={s.sub}>Configure your pharmacy location and details</p>
       </div>
 
-      {/* Profile Card */}
-      <div style={s.profileCard}>
-        <div style={s.avatar}>{initials}</div>
-        <div style={s.profileInfo}>
-          <div style={s.profileName}>{user?.name || 'Pharmacy'}</div>
-          <div style={s.profileRole}><Store size={14} /> Pharmacy Account</div>
+      <form onSubmit={handleSave} style={s.card}>
+        {/* Shop Name */}
+        <div style={s.field}>
+          <label style={s.label}>Shop Name *</label>
+          <input style={s.input} placeholder="e.g. Sharma Medical Store"
+            value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
         </div>
-        <div style={s.profileBadge}>Active</div>
-      </div>
 
-      {/* Account Info Section */}
-      <div style={s.section}>
-        <div style={s.sectionTitle}>Account Information</div>
-        <div style={s.card}>
-          <div style={s.row}>
-            <div style={s.rowLeft}>
-              <div style={s.rowIcon}><User size={18} color="#1D9E75" /></div>
-              <div>
-                <div style={s.rowLabel}>Full Name</div>
-                <div style={s.rowValue}>{user?.name || 'Pharmacy'}</div>
-              </div>
-            </div>
-            <ChevronRight size={18} color="#d1d5db" />
-          </div>
-          <div style={s.divider} />
-          <div style={s.row}>
-            <div style={s.rowLeft}>
-              <div style={s.rowIcon}><Phone size={18} color="#3b82f6" /></div>
-              <div>
-                <div style={s.rowLabel}>Phone Number</div>
-                <div style={s.rowValue}>{user?.phone || 'Not set'}</div>
-              </div>
-            </div>
-            <ChevronRight size={18} color="#d1d5db" />
-          </div>
-          <div style={s.divider} />
-          <div style={s.row}>
-            <div style={s.rowLeft}>
-              <div style={s.rowIcon}><Shield size={18} color="#8b5cf6" /></div>
-              <div>
-                <div style={s.rowLabel}>Account Role</div>
-                <div style={s.rowValue} className="capitalize">{user?.role || 'pharmacy'}</div>
-              </div>
-            </div>
-          </div>
-          <div style={s.divider} />
-          <div style={s.row}>
-            <div style={s.rowLeft}>
-              <div style={s.rowIcon}><MapPin size={18} color="#f59e0b" /></div>
-              <div>
-                <div style={s.rowLabel}>Pharmacy Address</div>
-                <div style={s.rowValue}>{user?.address || 'Not configured'}</div>
-              </div>
-            </div>
-            <ChevronRight size={18} color="#d1d5db" />
-          </div>
-          <div style={s.divider} />
-          <div style={s.row}>
-            <div style={s.rowLeft}>
-              <div style={s.rowIcon}><Clock size={18} color="#06b6d4" /></div>
-              <div>
-                <div style={s.rowLabel}>Operating Hours</div>
-                <div style={s.rowValue}>{user?.hours || '9:00 AM – 9:00 PM'}</div>
-              </div>
-            </div>
-            <ChevronRight size={18} color="#d1d5db" />
-          </div>
+        {/* Address */}
+        <div style={s.field}>
+          <label style={s.label}><MapPin size={13} /> Address</label>
+          <input style={s.input} placeholder="Full shop address"
+            value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} />
         </div>
-      </div>
 
-      {/* Preferences Section */}
-      <div style={s.section}>
-        <div style={s.sectionTitle}>Preferences</div>
-        <div style={s.card}>
-          <div style={s.row}>
-            <div style={s.rowLeft}>
-              <div style={s.rowIcon}><Bell size={18} color="#f59e0b" /></div>
-              <div>
-                <div style={s.rowLabel}>Order Notifications</div>
-                <div style={s.rowHint}>Get notified on new reservations</div>
-              </div>
-            </div>
-            <label style={s.toggle}>
-              <input type="checkbox" checked={notifications} onChange={() => setNotifications(!notifications)} style={{ display: 'none' }} />
-              <span style={{
-                ...s.toggleTrack,
-                background: notifications ? '#1D9E75' : '#e5e7eb',
-              }}>
-                <span style={{
-                  ...s.toggleKnob,
-                  transform: notifications ? 'translateX(18px)' : 'translateX(2px)',
-                }} />
-              </span>
-            </label>
-          </div>
-          <div style={s.divider} />
-          <div style={s.row}>
-            <div style={s.rowLeft}>
-              <div style={s.rowIcon}><Save size={18} color="#06b6d4" /></div>
-              <div>
-                <div style={s.rowLabel}>Auto-Accept Orders</div>
-                <div style={s.rowHint}>Automatically accept all reservations</div>
-              </div>
-            </div>
-            <label style={s.toggle}>
-              <input type="checkbox" checked={autoAccept} onChange={() => setAutoAccept(!autoAccept)} style={{ display: 'none' }} />
-              <span style={{
-                ...s.toggleTrack,
-                background: autoAccept ? '#1D9E75' : '#e5e7eb',
-              }}>
-                <span style={{
-                  ...s.toggleKnob,
-                  transform: autoAccept ? 'translateX(18px)' : 'translateX(2px)',
-                }} />
-              </span>
-            </label>
-          </div>
-          <div style={s.divider} />
-          <div style={s.row}>
-            <div style={s.rowLeft}>
-              <div style={s.rowIcon}>{darkMode ? <Moon size={18} color="#8b5cf6" /> : <Sun size={18} color="#f59e0b" />}</div>
-              <div>
-                <div style={s.rowLabel}>Dark Mode</div>
-                <div style={s.rowHint}>Switch appearance theme</div>
-              </div>
-            </div>
-            <label style={s.toggle}>
-              <input type="checkbox" checked={darkMode} onChange={() => setDarkMode(!darkMode)} style={{ display: 'none' }} />
-              <span style={{
-                ...s.toggleTrack,
-                background: darkMode ? '#1D9E75' : '#e5e7eb',
-              }}>
-                <span style={{
-                  ...s.toggleKnob,
-                  transform: darkMode ? 'translateX(18px)' : 'translateX(2px)',
-                }} />
-              </span>
-            </label>
-          </div>
+        {/* Hours */}
+        <div style={s.field}>
+          <label style={s.label}><Clock size={13} /> Operating Hours</label>
+          <input style={s.input} placeholder="e.g. 9:00 AM – 9:00 PM"
+            value={form.hours} onChange={e => setForm(p => ({ ...p, hours: e.target.value }))} />
         </div>
-      </div>
 
-      {/* Danger Zone */}
-      <div style={s.section}>
-        <div style={s.sectionTitle}>Account</div>
-        <div style={s.card}>
-          <div style={{ ...s.row, cursor: 'pointer' }} onClick={handleLogout}
-            onMouseEnter={(e) => { e.currentTarget.style.background = '#fef2f2'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-          >
-            <div style={s.rowLeft}>
-              <div style={{ ...s.rowIcon, background: '#fef2f2' }}><LogOut size={18} color="#ef4444" /></div>
-              <div>
-                <div style={{ ...s.rowLabel, color: '#ef4444' }}>Log Out</div>
-                <div style={s.rowHint}>Sign out of your pharmacy account</div>
-              </div>
-            </div>
-            <ChevronRight size={18} color="#ef4444" />
+        {/* Location */}
+        <div style={s.field}>
+          <label style={s.label}><Navigation size={13} /> Location (GPS coordinates)</label>
+          <div style={s.locRow}>
+            <input style={{ ...s.input, flex: 1 }} placeholder="Latitude" type="number" step="any"
+              value={form.lat} onChange={e => setForm(p => ({ ...p, lat: e.target.value }))} />
+            <input style={{ ...s.input, flex: 1 }} placeholder="Longitude" type="number" step="any"
+              value={form.lng} onChange={e => setForm(p => ({ ...p, lng: e.target.value }))} />
+            <button type="button" style={s.locBtn} onClick={useCurrentLocation} disabled={locating}>
+              <Navigation size={15} />
+              {locating ? 'Detecting...' : 'Use My Location'}
+            </button>
           </div>
+          <div style={s.hint}>This lets patients find your shop nearby. Click "Use My Location" for automatic detection.</div>
         </div>
-      </div>
 
-      <div style={s.footer}>MedPrice v1.0 · Pharmacy Portal</div>
+        {msg && <div style={s.successBanner}>{msg}</div>}
+        {err && <div style={s.errBanner}>{err}</div>}
+
+        <button type="submit" style={s.saveBtn} disabled={saving}>
+          <Save size={16} />
+          {saving ? 'Saving...' : 'Save Shop Profile'}
+        </button>
+      </form>
     </div>
   );
 }
 
 const s = {
-  page: { maxWidth: '640px', margin: '0 auto' },
-  pageHeader: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' },
-  pageHeaderIcon: { width: '44px', height: '44px', borderRadius: '12px', background: '#f0fdf7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1D9E75' },
-  pageTitle: { fontSize: '1.35rem', fontWeight: 800, color: '#1a1a2e', letterSpacing: '-0.3px' },
-  pageSubtitle: { fontSize: '0.82rem', color: '#9ca3af', fontWeight: 400, marginTop: '2px' },
+  center: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px' },
+  spinner: { width: '26px', height: '26px', border: '3px solid #e5e7eb', borderTop: '3px solid #1D9E75', borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
+  pageHeader: { marginBottom: '1.25rem' },
+  title: { fontSize: '1.5rem', fontWeight: 800, color: '#111827', margin: 0, letterSpacing: '-0.3px' },
+  sub: { fontSize: '0.82rem', color: '#9ca3af', margin: '2px 0 0' },
 
-  profileCard: { display: 'flex', alignItems: 'center', gap: '1rem', background: 'linear-gradient(135deg, #1D9E75 0%, #157b5a 100%)', borderRadius: '16px', padding: '1.25rem 1.5rem', marginBottom: '1.5rem', color: '#fff' },
-  avatar: { width: '50px', height: '50px', borderRadius: '14px', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 800, letterSpacing: '0.5px' },
-  profileInfo: { flex: 1 },
-  profileName: { fontSize: '1.1rem', fontWeight: 700 },
-  profileRole: { fontSize: '0.78rem', opacity: 0.85, display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' },
-  profileBadge: { padding: '0.2rem 0.7rem', borderRadius: '20px', background: 'rgba(255,255,255,0.2)', fontSize: '0.72rem', fontWeight: 600 },
+  card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: '14px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.1rem' },
+  field: { display: 'flex', flexDirection: 'column', gap: '6px' },
+  label: { fontSize: '0.8rem', fontWeight: 600, color: '#374151', display: 'flex', alignItems: 'center', gap: '4px' },
+  input: { padding: '0.65rem 0.9rem', border: '1.5px solid #e5e7eb', borderRadius: '10px', fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit', color: '#111827', transition: 'border-color 0.15s' },
+  locRow: { display: 'flex', gap: '0.6rem', flexWrap: 'wrap' },
+  locBtn: { display: 'flex', alignItems: 'center', gap: '6px', padding: '0.65rem 1rem', background: '#f0fdf7', color: '#1D9E75', border: '1.5px solid #bbf7d0', borderRadius: '10px', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap' },
+  hint: { fontSize: '0.73rem', color: '#9ca3af' },
 
-  section: { marginBottom: '1.25rem' },
-  sectionTitle: { fontSize: '0.75rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '0.5rem', paddingLeft: '4px' },
-  card: { background: '#fff', borderRadius: '14px', border: '1px solid #f3f4f6', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' },
-  row: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.85rem 1.1rem', transition: 'background 0.15s ease', borderRadius: '0' },
-  rowLeft: { display: 'flex', alignItems: 'center', gap: '12px' },
-  rowIcon: { width: '36px', height: '36px', borderRadius: '10px', background: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  rowLabel: { fontSize: '0.88rem', fontWeight: 600, color: '#1a1a2e' },
-  rowValue: { fontSize: '0.8rem', color: '#6b7280', marginTop: '1px', textTransform: 'capitalize' },
-  rowHint: { fontSize: '0.75rem', color: '#9ca3af', marginTop: '1px' },
-  divider: { height: '1px', background: '#f3f4f6', margin: '0 1.1rem' },
+  successBanner: { background: '#f0fdf7', border: '1px solid #bbf7d0', borderRadius: '10px', padding: '0.7rem 1rem', color: '#166534', fontSize: '0.875rem', fontWeight: 500 },
+  errBanner: { background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '0.7rem 1rem', color: '#ef4444', fontSize: '0.875rem' },
 
-  toggle: { cursor: 'pointer', display: 'inline-flex' },
-  toggleTrack: { width: '40px', height: '22px', borderRadius: '11px', position: 'relative', transition: 'background 0.2s ease', display: 'inline-block' },
-  toggleKnob: { width: '18px', height: '18px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', transition: 'transform 0.2s ease', boxShadow: '0 1px 3px rgba(0,0,0,0.15)' },
-
-  footer: { textAlign: 'center', fontSize: '0.72rem', color: '#d1d5db', padding: '1.5rem 0 0.5rem', fontWeight: 500, letterSpacing: '0.3px' },
+  saveBtn: { display: 'flex', alignItems: 'center', gap: '8px', padding: '0.75rem 1.5rem', background: '#1D9E75', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', width: 'fit-content' },
 };
-
-export default Settings;
