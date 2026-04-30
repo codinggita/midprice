@@ -15,11 +15,36 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const pharmacyIcon = new L.DivIcon({
-  className: '',
-  html: `<div style="width:36px;height:36px;border-radius:50%;background:#1D9E75;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);color:#fff;font-weight:800;font-size:16px;">💊</div>`,
-  iconSize: [36, 36], iconAnchor: [18, 36], popupAnchor: [0, -38],
-});
+/* Dynamic price-tag marker (shows price above the pin) */
+function makePriceIcon(price, isSelected) {
+  const bg  = isSelected ? '#111827' : '#1D9E75';
+  const shadow = isSelected ? '0 3px 12px rgba(0,0,0,0.35)' : '0 2px 8px rgba(0,0,0,0.2)';
+  return new L.DivIcon({
+    className: '',
+    html: `
+      <div style="display:flex;flex-direction:column;align-items:center;">
+        <div style="
+          background:${bg};color:#fff;padding:3px 10px;border-radius:20px;
+          font-weight:800;font-size:13px;font-family:Inter,sans-serif;
+          white-space:nowrap;box-shadow:${shadow};letter-spacing:0.2px;
+          border:2px solid #fff;
+        ">₹${price}</div>
+        <div style="
+          width:0;height:0;
+          border-left:6px solid transparent;border-right:6px solid transparent;
+          border-top:6px solid ${bg};margin-top:-1px;
+        "></div>
+        <div style="
+          width:8px;height:8px;border-radius:50%;background:${bg};
+          border:2px solid #fff;margin-top:2px;box-shadow:0 1px 3px rgba(0,0,0,0.2);
+        "></div>
+      </div>
+    `,
+    iconSize: [60, 50],
+    iconAnchor: [30, 50],
+    popupAnchor: [0, -52],
+  });
+}
 
 const userIcon = new L.DivIcon({
   className: '',
@@ -153,15 +178,18 @@ export default function PatientSearch() {
 
   const clearRoute = () => { setRouteLine(null); setRouteInfo(null); };
 
-  /* Group results by pharmacy */
+  /* Group results by pharmacy + compute lowest price */
   const pharmacyMap = {};
   results.forEach(r => {
     const pid = r.pharmacy?.id;
     if (!pid) return;
     if (!pharmacyMap[pid]) {
-      pharmacyMap[pid] = { ...r.pharmacy, medicines: [] };
+      pharmacyMap[pid] = { ...r.pharmacy, medicines: [], lowestPrice: Infinity };
     }
     pharmacyMap[pid].medicines.push(r);
+    if (r.sellingPrice < pharmacyMap[pid].lowestPrice) {
+      pharmacyMap[pid].lowestPrice = r.sellingPrice;
+    }
   });
   const pharmacies = Object.values(pharmacyMap).filter(p => p.lat && p.lng);
 
@@ -191,7 +219,7 @@ export default function PatientSearch() {
         )}
 
         {pharmacies.map(p => (
-          <Marker key={p.id} position={[p.lat, p.lng]} icon={pharmacyIcon}>
+          <Marker key={p.id} position={[p.lat, p.lng]} icon={makePriceIcon(p.lowestPrice, selectedId && p.medicines.some(m => m.inventoryId === selectedId))}>
             <Popup>
               <div style={{ fontFamily: 'Inter, sans-serif', minWidth: '200px' }}>
                 <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '2px' }}>{p.name}</div>
