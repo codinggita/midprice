@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import api from '../../lib/api';
 import useAuthStore from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
+import { User, Phone, Shield, LogOut, Navigation, X } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
-/* ─── Fix default marker icons (leaflet + webpack issue) ─── */
+/* ─── Fix default marker icons ─── */
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -14,37 +15,37 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-/* Custom pharmacy marker */
 const pharmacyIcon = new L.DivIcon({
   className: '',
-  html: `<div style="
-    width:36px;height:36px;border-radius:50%;background:#1D9E75;
-    display:flex;align-items:center;justify-content:center;
-    border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);
-    color:#fff;font-weight:800;font-size:16px;font-family:sans-serif;
-  ">💊</div>`,
-  iconSize: [36, 36],
-  iconAnchor: [18, 36],
-  popupAnchor: [0, -38],
+  html: `<div style="width:36px;height:36px;border-radius:50%;background:#1D9E75;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);color:#fff;font-weight:800;font-size:16px;">💊</div>`,
+  iconSize: [36, 36], iconAnchor: [18, 36], popupAnchor: [0, -38],
 });
 
-/* User location marker */
 const userIcon = new L.DivIcon({
   className: '',
-  html: `<div style="
-    width:18px;height:18px;border-radius:50%;background:#3b82f6;
-    border:3px solid #fff;box-shadow:0 0 0 6px rgba(59,130,246,0.25);
-  "></div>`,
-  iconSize: [18, 18],
-  iconAnchor: [9, 9],
+  html: `<div style="width:18px;height:18px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 0 0 6px rgba(59,130,246,0.25);"></div>`,
+  iconSize: [18, 18], iconAnchor: [9, 9],
 });
 
-/* Fly map to position */
 function FlyTo({ center, zoom }) {
   const map = useMap();
-  useEffect(() => {
-    if (center) map.flyTo(center, zoom || 14, { duration: 1.2 });
-  }, [center, zoom, map]);
+  useEffect(() => { if (center) map.flyTo(center, zoom || 14, { duration: 1.2 }); }, [center, zoom, map]);
+  return null;
+}
+
+/* ─── Routing helper: fetch route from OSRM (free) ─── */
+async function fetchRoute(from, to) {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.routes && data.routes.length > 0) {
+      const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+      const dist = (data.routes[0].distance / 1000).toFixed(1);
+      const dur  = Math.round(data.routes[0].duration / 60);
+      return { coords, dist, dur };
+    }
+  } catch {}
   return null;
 }
 
@@ -62,8 +63,25 @@ export default function PatientSearch() {
   const [selectedId, setSelectedId] = useState(null);
   const [panelOpen, setPanelOpen]   = useState(false);
 
-  const inputRef    = useRef(null);
-  const listRef     = useRef(null);
+  // Account dropdown
+  const [showAccount, setShowAccount] = useState(false);
+  const accountRef = useRef(null);
+
+  // Route
+  const [routeLine, setRouteLine]   = useState(null);
+  const [routeInfo, setRouteInfo]   = useState(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+
+  const inputRef = useRef(null);
+
+  /* Close account dropdown on outside click */
+  useEffect(() => {
+    const handler = (e) => {
+      if (accountRef.current && !accountRef.current.contains(e.target)) setShowAccount(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   /* Get user location on mount */
   useEffect(() => {
@@ -75,7 +93,6 @@ export default function PatientSearch() {
           setFlyTarget(loc);
         },
         () => {
-          // Default to Kolkata if denied
           const fallback = { lat: 22.5726, lng: 88.3639 };
           setUserLoc(fallback);
           setFlyTarget(fallback);
@@ -87,8 +104,7 @@ export default function PatientSearch() {
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
-    setLoading(true);
-    setSearched(false);
+    setLoading(true); setSearched(false); setRouteLine(null); setRouteInfo(null);
     try {
       const { data } = await api.get('/api/medicines/search', {
         params: { q: query.trim(), lat: userLoc?.lat || 0, lng: userLoc?.lng || 0 },
@@ -96,7 +112,6 @@ export default function PatientSearch() {
       setResults(data.results || []);
       setSearched(true);
       setPanelOpen(true);
-      // Fly to first result
       if (data.results?.length > 0) {
         const first = data.results[0];
         if (first.pharmacy?.lat && first.pharmacy?.lng) {
@@ -104,8 +119,7 @@ export default function PatientSearch() {
         }
       }
     } catch {
-      setResults([]);
-      setSearched(true);
+      setResults([]); setSearched(true);
     } finally {
       setLoading(false);
     }
@@ -120,19 +134,39 @@ export default function PatientSearch() {
     }
   };
 
-  /* Group results by pharmacy for map markers */
+  /* Directions */
+  const handleDirections = async (pharmacy) => {
+    if (!userLoc || !pharmacy.lat || !pharmacy.lng) return alert('Location not available.');
+    setRouteLoading(true);
+    const route = await fetchRoute(userLoc, { lat: pharmacy.lat, lng: pharmacy.lng });
+    setRouteLoading(false);
+    if (route) {
+      setRouteLine(route.coords);
+      setRouteInfo({ dist: route.dist, dur: route.dur, name: pharmacy.name });
+      // Fit bounds
+      setFlyTarget({ lat: pharmacy.lat, lng: pharmacy.lng });
+    } else {
+      // Fallback: open Google Maps
+      window.open(`https://www.google.com/maps/dir/?api=1&origin=${userLoc.lat},${userLoc.lng}&destination=${pharmacy.lat},${pharmacy.lng}&travelmode=driving`, '_blank');
+    }
+  };
+
+  const clearRoute = () => { setRouteLine(null); setRouteInfo(null); };
+
+  /* Group results by pharmacy */
   const pharmacyMap = {};
   results.forEach(r => {
     const pid = r.pharmacy?.id;
     if (!pid) return;
     if (!pharmacyMap[pid]) {
-      pharmacyMap[pid] = { ...r.pharmacy, lat: r.pharmacy.lat, lng: r.pharmacy.lng, medicines: [] };
+      pharmacyMap[pid] = { ...r.pharmacy, medicines: [] };
     }
     pharmacyMap[pid].medicines.push(r);
   });
   const pharmacies = Object.values(pharmacyMap).filter(p => p.lat && p.lng);
 
   const defaultCenter = userLoc || { lat: 22.5726, lng: 88.3639 };
+  const initials = (user?.name || 'U').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
   return (
     <div style={s.shell}>
@@ -150,47 +184,93 @@ export default function PatientSearch() {
         />
         {flyTarget && <FlyTo center={[flyTarget.lat, flyTarget.lng]} zoom={14} />}
 
-        {/* User location */}
         {userLoc && (
           <Marker position={[userLoc.lat, userLoc.lng]} icon={userIcon}>
             <Popup><b>You are here</b></Popup>
           </Marker>
         )}
 
-        {/* Pharmacy markers */}
         {pharmacies.map(p => (
           <Marker key={p.id} position={[p.lat, p.lng]} icon={pharmacyIcon}>
             <Popup>
-              <div style={{ fontFamily: 'Inter, sans-serif', minWidth: '180px' }}>
-                <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '4px' }}>{p.name}</div>
-                {p.address && <div style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: '6px' }}>{p.address}</div>}
+              <div style={{ fontFamily: 'Inter, sans-serif', minWidth: '200px' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '2px' }}>{p.name}</div>
+                {p.address && <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '6px' }}>{p.address}</div>}
                 {p.medicines.map(m => (
                   <div key={m.inventoryId} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderTop: '1px solid #f3f4f6' }}>
                     <span style={{ fontSize: '0.82rem', fontWeight: 500 }}>{m.medicine.name}</span>
                     <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1D9E75' }}>₹{m.sellingPrice}</span>
                   </div>
                 ))}
+                <button
+                  onClick={() => handleDirections(p)}
+                  style={{
+                    width: '100%', marginTop: '8px', padding: '0.5rem',
+                    background: '#111827', color: '#fff', border: 'none', borderRadius: '8px',
+                    fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+                  }}
+                >
+                  <span>🧭</span> Get Directions
+                </button>
               </div>
             </Popup>
           </Marker>
         ))}
+
+        {/* Route polyline */}
+        {routeLine && (
+          <Polyline positions={routeLine} pathOptions={{ color: '#3b82f6', weight: 5, opacity: 0.85 }} />
+        )}
       </MapContainer>
 
-      {/* ─── TOP BAR (Uber-style) ─── */}
-      <div style={s.topBar}>
-        <div style={s.topLeft}>
-          <div style={s.brand}>
-            <span style={s.brandDot} />
-            MedPrice
-          </div>
+      {/* ─── TOP NAV BAR ─── */}
+      <div style={s.navBar}>
+        <div style={s.brand}>
+          <span style={s.brandDot} />
+          MedPrice
         </div>
-        <div style={s.topRight}>
-          <span style={s.greeting}>Hi, {user?.name || 'User'}</span>
-          <button style={s.logoutBtn} onClick={handleLogout}>Logout</button>
+        <div style={s.navRight} ref={accountRef}>
+          <button style={s.avatarBtn} onClick={() => setShowAccount(!showAccount)}>
+            {initials}
+          </button>
+
+          {/* Account dropdown */}
+          {showAccount && (
+            <div style={s.dropdown}>
+              <div style={s.dropdownHeader}>
+                <div style={s.dropdownAvatar}>{initials}</div>
+                <div>
+                  <div style={s.dropdownName}>{user?.name || 'Guest'}</div>
+                  <div style={s.dropdownRole}>Patient Account</div>
+                </div>
+              </div>
+              <div style={s.dropdownDivider} />
+              <div style={s.dropdownRow}>
+                <User size={15} color="#6b7280" />
+                <span style={s.dropdownLabel}>Name</span>
+                <span style={s.dropdownValue}>{user?.name || 'Guest'}</span>
+              </div>
+              <div style={s.dropdownRow}>
+                <Phone size={15} color="#6b7280" />
+                <span style={s.dropdownLabel}>Phone</span>
+                <span style={s.dropdownValue}>{user?.phone || 'N/A'}</span>
+              </div>
+              <div style={s.dropdownRow}>
+                <Shield size={15} color="#6b7280" />
+                <span style={s.dropdownLabel}>Role</span>
+                <span style={s.dropdownValue}>{user?.role || 'patient'}</span>
+              </div>
+              <div style={s.dropdownDivider} />
+              <button style={s.dropdownLogout} onClick={handleLogout}>
+                <LogOut size={15} /> Logout
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ─── SEARCH CARD (Floating) ─── */}
+      {/* ─── SEARCH CARD ─── */}
       <div style={s.searchCard}>
         <div style={s.searchLabel}>Find Medicines Near You</div>
         <form onSubmit={handleSearch} style={s.searchForm}>
@@ -214,10 +294,30 @@ export default function PatientSearch() {
         )}
       </div>
 
-      {/* ─── BOTTOM RESULTS PANEL (Uber-style slide-up) ─── */}
+      {/* ─── ROUTE INFO BAR ─── */}
+      {routeInfo && (
+        <div style={s.routeBar}>
+          <div style={s.routeBarLeft}>
+            <Navigation size={16} color="#3b82f6" />
+            <div>
+              <div style={s.routeBarTitle}>Route to {routeInfo.name}</div>
+              <div style={s.routeBarMeta}>{routeInfo.dist} km · ~{routeInfo.dur} min drive</div>
+            </div>
+          </div>
+          <button style={s.routeBarClose} onClick={clearRoute}><X size={16} /></button>
+        </div>
+      )}
+
+      {routeLoading && (
+        <div style={s.routeBar}>
+          <Navigation size={16} color="#3b82f6" />
+          <span style={s.routeBarTitle}>Finding shortest route...</span>
+        </div>
+      )}
+
+      {/* ─── BOTTOM RESULTS PANEL ─── */}
       {searched && (
         <div style={{ ...s.bottomPanel, ...(panelOpen ? s.bottomPanelOpen : s.bottomPanelClosed) }}>
-          {/* Drag handle */}
           <div style={s.dragBar} onClick={() => setPanelOpen(!panelOpen)}>
             <div style={s.dragHandle} />
             <span style={s.resultCount}>
@@ -227,9 +327,8 @@ export default function PatientSearch() {
             </span>
           </div>
 
-          {/* Results list */}
           {panelOpen && (
-            <div ref={listRef} style={s.resultsList}>
+            <div style={s.resultsList}>
               {results.length === 0 ? (
                 <div style={s.emptyMsg}>
                   No pharmacy near you has "{query}". Try a different medicine.
@@ -260,6 +359,13 @@ export default function PatientSearch() {
                         </div>
                       </div>
                     </div>
+                    {/* Directions button on card */}
+                    <button
+                      style={s.dirBtn}
+                      onClick={(e) => { e.stopPropagation(); handleDirections(r.pharmacy); }}
+                    >
+                      <Navigation size={13} /> Directions
+                    </button>
                   </div>
                 ))
               )}
@@ -275,29 +381,63 @@ export default function PatientSearch() {
 const s = {
   shell: { width: '100%', height: '100%', position: 'relative', fontFamily: "'Inter', sans-serif" },
 
-  /* Top bar */
-  topBar: {
+  /* Nav bar */
+  navBar: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000,
     height: '54px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '0 1.25rem',
-    background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%)',
-    pointerEvents: 'none',
+    background: '#fff', borderBottom: '1px solid #f3f4f6',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
   },
-  topLeft: { pointerEvents: 'auto' },
   brand: { fontWeight: 800, fontSize: '1.2rem', color: '#111827', display: 'flex', alignItems: 'center', gap: '6px' },
   brandDot: { width: '8px', height: '8px', borderRadius: '50%', background: '#1D9E75' },
-  topRight: { display: 'flex', alignItems: 'center', gap: '10px', pointerEvents: 'auto' },
-  greeting: { fontSize: '0.82rem', color: '#374151', fontWeight: 500 },
-  logoutBtn: {
-    padding: '0.3rem 0.75rem', borderRadius: '8px', border: '1.5px solid #e5e7eb',
-    background: '#fff', color: '#6b7280', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600,
-    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+  navRight: { position: 'relative' },
+  avatarBtn: {
+    width: '36px', height: '36px', borderRadius: '50%', background: '#1D9E75',
+    color: '#fff', border: 'none', cursor: 'pointer',
+    fontWeight: 800, fontSize: '0.82rem', letterSpacing: '0.3px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+  },
+
+  /* Account dropdown */
+  dropdown: {
+    position: 'absolute', top: '44px', right: 0, width: '280px',
+    background: '#fff', borderRadius: '14px', border: '1px solid #e5e7eb',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.12)', padding: '0.75rem 0',
+    zIndex: 1001,
+  },
+  dropdownHeader: {
+    display: 'flex', alignItems: 'center', gap: '10px',
+    padding: '0.5rem 1rem 0.65rem',
+  },
+  dropdownAvatar: {
+    width: '40px', height: '40px', borderRadius: '50%',
+    background: 'linear-gradient(135deg, #1D9E75, #14b8a6)',
+    color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontWeight: 800, fontSize: '0.9rem', flexShrink: 0,
+  },
+  dropdownName: { fontWeight: 700, fontSize: '0.92rem', color: '#111827' },
+  dropdownRole: { fontSize: '0.72rem', color: '#9ca3af', fontWeight: 500, marginTop: '1px' },
+  dropdownDivider: { height: '1px', background: '#f3f4f6', margin: '0.25rem 0' },
+  dropdownRow: {
+    display: 'flex', alignItems: 'center', gap: '8px',
+    padding: '0.5rem 1rem', fontSize: '0.82rem',
+  },
+  dropdownLabel: { fontWeight: 500, color: '#9ca3af', width: '50px' },
+  dropdownValue: { fontWeight: 600, color: '#374151', flex: 1, textAlign: 'right' },
+  dropdownLogout: {
+    width: 'calc(100% - 2rem)', margin: '0.4rem 1rem 0.25rem',
+    padding: '0.55rem', borderRadius: '10px', border: 'none',
+    background: '#fef2f2', color: '#ef4444', cursor: 'pointer',
+    fontWeight: 700, fontSize: '0.82rem',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
   },
 
   /* Search card */
   searchCard: {
-    position: 'absolute', top: '60px', left: '50%', transform: 'translateX(-50%)',
-    zIndex: 1000, width: '92%', maxWidth: '440px',
+    position: 'absolute', top: '64px', left: '50%', transform: 'translateX(-50%)',
+    zIndex: 999, width: '92%', maxWidth: '440px',
     background: '#fff', borderRadius: '16px', padding: '1rem 1.1rem',
     boxShadow: '0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06)',
   },
@@ -315,16 +455,33 @@ const s = {
   locInfo: { display: 'flex', alignItems: 'center', gap: '6px', marginTop: '0.6rem', fontSize: '0.75rem', color: '#6b7280' },
   locDot: { width: '6px', height: '6px', borderRadius: '50%', background: '#3b82f6' },
 
+  /* Route info bar */
+  routeBar: {
+    position: 'absolute', top: '180px', left: '50%', transform: 'translateX(-50%)',
+    zIndex: 999, width: '92%', maxWidth: '440px',
+    background: '#fff', borderRadius: '12px', padding: '0.7rem 1rem',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
+    display: 'flex', alignItems: 'center', gap: '10px',
+  },
+  routeBarLeft: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
+  routeBarTitle: { fontWeight: 700, fontSize: '0.85rem', color: '#111827' },
+  routeBarMeta: { fontSize: '0.75rem', color: '#3b82f6', fontWeight: 600, marginTop: '1px' },
+  routeBarClose: {
+    width: '28px', height: '28px', borderRadius: '50%', border: 'none',
+    background: '#f3f4f6', cursor: 'pointer', display: 'flex',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#6b7280',
+  },
+
   /* Bottom panel */
   bottomPanel: {
     position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 1000,
     background: '#fff', borderRadius: '20px 20px 0 0',
     boxShadow: '0 -4px 24px rgba(0,0,0,0.1)',
-    transition: 'max-height 0.35s ease, padding 0.35s ease',
+    transition: 'max-height 0.35s ease',
     overflow: 'hidden',
   },
-  bottomPanelOpen: { maxHeight: '55vh', padding: '0' },
-  bottomPanelClosed: { maxHeight: '70px', padding: '0' },
+  bottomPanelOpen: { maxHeight: '55vh' },
+  bottomPanelClosed: { maxHeight: '70px' },
 
   dragBar: {
     padding: '0.7rem 1.25rem', cursor: 'pointer',
@@ -340,7 +497,6 @@ const s = {
 
   emptyMsg: { textAlign: 'center', padding: '1.5rem', color: '#9ca3af', fontSize: '0.88rem' },
 
-  /* Result cards */
   card: {
     padding: '0.85rem 1rem', borderRadius: '14px', border: '1.5px solid #f3f4f6',
     cursor: 'pointer', transition: 'all 0.15s ease', position: 'relative', overflow: 'hidden',
@@ -363,4 +519,11 @@ const s = {
   price: { fontWeight: 800, fontSize: '1.15rem', color: '#111827' },
   dist: { fontSize: '0.72rem', color: '#6b7280', marginTop: '1px' },
   stockTag: { fontSize: '0.65rem', fontWeight: 700, padding: '0.12rem 0.4rem', borderRadius: '6px', marginTop: '3px', display: 'inline-block' },
+
+  dirBtn: {
+    marginTop: '0.5rem', width: '100%', padding: '0.45rem',
+    background: '#111827', color: '#fff', border: 'none', borderRadius: '8px',
+    fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+  },
 };
