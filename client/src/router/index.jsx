@@ -8,6 +8,7 @@ import VendorLayout from '../layouts/VendorLayout';
 import VendorDashboard from '../pages/vendor/Dashboard';
 import VendorInventory from '../pages/vendor/Inventory';
 import VendorSettings from '../pages/vendor/Settings';
+import AdminDashboard from '../pages/admin/AdminDashboard';
 import NotFound from '../pages/NotFound';
 
 function AppRoutes() {
@@ -32,6 +33,9 @@ function AppRoutes() {
         <Route path="inventory" element={<VendorInventory />} />
         <Route path="settings" element={<VendorSettings />} />
       </Route>
+
+      {/* Hidden Admin route — only you know this URL */}
+      <Route path="/medprice-admin" element={<AdminDashboard />} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>

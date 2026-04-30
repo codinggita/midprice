@@ -77,6 +77,20 @@ router.get('/admin/pending', async (req, res) => {
   res.json({ count: pending.length, vendors: pending });
 });
 
+/* ─── Admin: List ALL vendors ─── */
+// GET /api/vendor/verification/admin/all?secret=YOUR_ADMIN_SECRET
+router.get('/admin/all', async (req, res) => {
+  const { secret } = req.query;
+  if (secret !== (process.env.ADMIN_SECRET || 'medprice-admin-2026')) {
+    return res.status(401).json({ message: 'Invalid admin secret.' });
+  }
+
+  const vendors = await User.find({ role: 'vendor' })
+    .select('name phone licenseUrl verificationStatus isVerified createdAt')
+    .sort({ createdAt: -1 });
+  res.json({ count: vendors.length, vendors });
+});
+
 /* ─── Admin: Approve a vendor ─── */
 // POST /api/vendor/verification/admin/approve/:userId?secret=YOUR_ADMIN_SECRET
 router.post('/admin/approve/:userId', async (req, res) => {
