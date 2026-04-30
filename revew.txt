@@ -1,0 +1,50 @@
+# MedPrice Testing Review & Bug Report
+
+## Status: ✅ ALL BUGS FIXED
+
+---
+
+## 1. Bugs Found & Fixes Applied
+
+### ✅ Patient Search Page Crash (CRITICAL) — FIXED
+*   **Issue**: The Search page crashed with `ReferenceError: filterOptions is not defined`.
+*   **Root Cause**: The `filterOptions` array was removed during a previous refactor, along with several style keys (`lowestBadge`, `cardBottom`, `btnOutline`, `btnFilled`, `savingsBadge`). The JSX also referenced stale style keys (`s.toolbar`, `s.chipsRow`, `s.chipBase`, `s.chipInactive`, `s.searchInput`). Additionally, `allResults` was missing from the `useMemo` dependency array.
+*   **Fix**: Restored the `filterOptions` array, all missing style definitions, fixed all JSX references to use the correct style keys, added `allResults` to the `useMemo` deps, wrapped cards in the grid container, and used unique composite keys.
+*   **File**: `client/src/pages/patient/SearchResults.jsx`
+
+### ✅ Vendor 'Add Medicine' Modal Broken (HIGH) — FIXED
+*   **Issue**: The "Save Medicine" button remained disabled even after filling all fields. The medicine selection UX was confusing — selecting from the dropdown set `medSearch` to the medicine name, which re-triggered the search `useEffect`, and the old dropdown logic (`medSearch && !newMed.medicineId`) was fragile.
+*   **Fix**: Replaced the combined search/display input with a clear two-state UI: a search input with dropdown (when no medicine selected) and a green `✓ Medicine Name` indicator with a `✕` clear button (when a medicine is selected). Added `canSave` validation requiring ALL fields (medicineId, MRP > 0, sellingPrice > 0, stockQty > 0) before enabling the Save button. Properly resets all modal state on Cancel/Save.
+*   **File**: `client/src/pages/vendor/Inventory.jsx`
+
+### ✅ Data Integrity — MRP of ₹0 (MEDIUM) — FIXED
+*   **Issue**: The server-side `addInventory` endpoint accepted `MRP: 0` and `sellingPrice: 0`, allowing corrupted data.
+*   **Fix**: Added server-side validation: MRP must be > 0, sellingPrice must be > 0, and sellingPrice cannot exceed MRP. Values are explicitly cast to `Number()` before saving.
+*   **File**: `server/controllers/inventoryController.js`
+
+---
+
+## 2. Verification Results (Browser-Tested)
+
+| Test Case                        | Status |
+|----------------------------------|--------|
+| Patient Login                    | ✅ Pass |
+| Search "Paracetamol"             | ✅ Pass — 3 results, no crash |
+| Filter chips render              | ✅ Pass — Open Now, Generic, Within 5km, In Stock |
+| Sort dropdown works              | ✅ Pass — Price Low to High / High to Low |
+| Compare Prices button            | ✅ Pass — Navigates to detail page with comparison table |
+| Reserve button                   | ✅ Pass — Navigates to reservation flow |
+| Vendor Login                     | ✅ Pass |
+| Vendor Inventory page            | ✅ Pass |
+| Add Medicine — search dropdown   | ✅ Pass — Shows results, select works |
+| Add Medicine — selection indicator| ✅ Pass — Shows green "✓ Paracetamol (500mg)" |
+| Add Medicine — Save validation   | ✅ Pass — Disabled when MRP=0, enabled with all fields > 0 |
+| Server rejects MRP=0             | ✅ Pass — Returns 400 "MRP must be greater than 0" |
+
+---
+
+## 3. Files Changed
+
+1. `client/src/pages/patient/SearchResults.jsx` — Full rewrite fixing crash + UI
+2. `client/src/pages/vendor/Inventory.jsx` — Add Medicine modal UX + validation
+3. `server/controllers/inventoryController.js` — Server-side input validation

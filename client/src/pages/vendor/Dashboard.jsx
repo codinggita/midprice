@@ -1,155 +1,128 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
 import api from '../../lib/api';
+import useAuthStore from '../../store/authStore';
+import { MapPin, Package, Clock, Store, AlertCircle } from 'lucide-react';
 
-const s = {
-  page: { maxWidth: '960px' },
-  greeting: { fontSize: '1.6rem', fontWeight: 700, color: '#1a1a2e', marginBottom: '1.5rem' },
-  statsRow: { display: 'flex', gap: '1rem', marginBottom: '2.5rem' },
-  statCard: { flex: 1, background: '#fff', borderRadius: '16px', padding: '1.25rem', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', border: '1px solid #f3f4f6', transition: 'transform 0.2s ease, box-shadow 0.2s ease', cursor: 'default' },
-  statIcon: { fontSize: '1.5rem', marginBottom: '0.4rem' },
-  statLabel: { fontSize: '0.75rem', fontWeight: 500, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.35rem' },
-  statValue: { fontSize: '1.6rem', fontWeight: 800, color: '#1a1a2e' },
-  sectionHeading: { fontSize: '1.15rem', fontWeight: 700, color: '#1a1a2e', marginBottom: '1rem' },
-  tableWrap: { background: '#fff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', border: '1px solid #f3f4f6', marginBottom: '2.5rem' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' },
-  th: { padding: '0.85rem 1rem', textAlign: 'left', fontWeight: 700, color: '#374151', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #f3f4f6', background: '#fafbfc' },
-  td: { padding: '0.85rem 1rem', borderBottom: '1px solid #f3f4f6', color: '#374151', verticalAlign: 'middle' },
-  patientName: { fontWeight: 600, color: '#1a1a2e' },
-  badgePending: { display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '8px', background: '#fef3c7', color: '#92400e', fontSize: '0.75rem', fontWeight: 600 },
-  badgeReady: { display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '8px', background: '#d1fae5', color: '#065f46', fontSize: '0.75rem', fontWeight: 600 },
-  actionRow: { display: 'flex', gap: '0.5rem' },
-  markReadyBtn: { padding: '0.4rem 0.8rem', borderRadius: '8px', border: 'none', background: '#1D9E75', color: '#fff', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', transition: 'background 0.2s ease' },
-  cancelBtn: { padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1.5px solid #e5e7eb', background: '#fff', color: '#6b7280', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', transition: 'all 0.2s ease' },
-  loading: { textAlign: 'center', padding: '2rem', color: '#1D9E75', fontSize: '0.95rem', fontWeight: 600 },
-  empty: { textAlign: 'center', padding: '2rem', color: '#9ca3af', fontSize: '0.9rem' },
-  lowStockRow: { display: 'flex', gap: '1rem' },
-  lowStockCard: { flex: 1, background: '#fff', borderRadius: '16px', padding: '1.25rem', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', border: '1px solid #f3f4f6', borderLeft: '3px solid #f59e0b', transition: 'transform 0.2s ease, box-shadow 0.2s ease' },
-  lowStockName: { fontSize: '0.95rem', fontWeight: 700, color: '#1a1a2e', marginBottom: '0.25rem' },
-  lowStockQty: { fontSize: '0.8rem', color: '#f59e0b', fontWeight: 600, marginBottom: '0.75rem' },
-  updateBtn: { padding: '0.45rem 0.9rem', borderRadius: '8px', border: '1.5px solid #1D9E75', background: '#fff', color: '#1D9E75', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.2s ease' },
-};
-
-function VendorDashboard() {
-  const navigate = useNavigate();
-  const [reservations, setReservations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+export default function VendorDashboard() {
+  const user = useAuthStore(s => s.user);
+  const [pharmacy, setPharmacy] = useState(null);
   const [inventory, setInventory] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const fetchReservations = async () => {
-    try {
-      const { data } = await api.get('/api/reservations/vendor?status=pending');
-      setReservations(data.reservations || []);
-      setError('');
-    } catch (_) { setError('Something went wrong. Try again.'); }
-    finally { setLoading(false); }
-  };
+  useEffect(() => {
+    Promise.all([
+      api.get('/api/vendor/pharmacy').then(r => setPharmacy(r.data)).catch(() => {}),
+      api.get('/api/vendor/inventory').then(r => setInventory(r.data.inventory || [])).catch(() => {}),
+    ]).finally(() => setLoading(false));
+  }, []);
 
-  const fetchInventory = async () => {
-    try {
-      const { data } = await api.get('/api/vendor/inventory');
-      setInventory(data.inventory || []);
-    } catch (_) { /* silent */ }
-  };
+  const lowStock = inventory.filter(i => i.stockQty <= 5);
 
-  useEffect(() => { fetchReservations(); fetchInventory(); }, []);
-
-  const handleMarkReady = async (id) => {
-    try {
-      await api.patch(`/api/reservations/vendor/${id}/status`, { status: 'ready' });
-      fetchReservations();
-    } catch (_) { setError('Failed to update status.'); }
-  };
-
-  const handleCancel = async (id) => {
-    try {
-      await api.patch(`/api/reservations/vendor/${id}/status`, { status: 'cancelled' });
-      fetchReservations();
-    } catch (_) { setError('Failed to cancel reservation.'); }
-  };
-
-  const lowStockItems = inventory.filter((i) => i.isListed && i.stockQty > 0 && i.stockQty <= 5);
-  const listedCount = inventory.filter((i) => i.isListed).length;
-
-  const statsData = [
-    { icon: '📋', label: "Pending Reservations", value: String(reservations.length) },
-    { icon: '💊', label: 'Medicines Listed', value: String(listedCount) },
-    { icon: '⚠️', label: 'Low Stock Items', value: String(lowStockItems.length) },
-    { icon: '📦', label: 'Total Inventory', value: String(inventory.length) },
-  ];
+  if (loading) return <div style={s.center}><div style={s.spinner} /></div>;
 
   return (
-    <div style={s.page}>
-      <div style={s.greeting}>Pharmacy Dashboard 🏪</div>
+    <div>
+      {/* Header */}
+      <div style={s.pageHeader}>
+        <div>
+          <h1 style={s.title}>Dashboard</h1>
+          <p style={s.sub}>Welcome back, {user?.name || 'Vendor'}</p>
+        </div>
+      </div>
 
-      {error && (
-        <div style={{ background: '#fef2f2', border: '2px solid #ef4444', borderRadius: '12px', padding: '1rem', marginBottom: '1.5rem', color: '#ef4444', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {error}
-          <button style={{ padding: '0.4rem 1rem', borderRadius: '8px', border: 'none', background: '#ef4444', color: '#fff', fontWeight: 600, cursor: 'pointer' }} onClick={() => { setError(''); fetchReservations(); }}>Retry</button>
+      {/* Shop Info Card */}
+      {pharmacy ? (
+        <div style={s.shopCard}>
+          <div style={s.shopLeft}>
+            <div style={s.shopAvatar}><Store size={22} color="#1D9E75" /></div>
+            <div>
+              <div style={s.shopName}>{pharmacy.name}</div>
+              {pharmacy.address && (
+                <div style={s.shopAddr}><MapPin size={13} /> {pharmacy.address}</div>
+              )}
+              {pharmacy.hours && (
+                <div style={s.shopAddr}><Clock size={13} /> {pharmacy.hours}</div>
+              )}
+            </div>
+          </div>
+          {pharmacy.lat && pharmacy.lng ? (
+            <div style={s.coordBadge}>
+              <MapPin size={12} color="#1D9E75" /> {Number(pharmacy.lat).toFixed(4)}, {Number(pharmacy.lng).toFixed(4)}
+            </div>
+          ) : (
+            <div style={s.noCoord}>Location not set</div>
+          )}
+        </div>
+      ) : (
+        <div style={s.setupBanner}>
+          <AlertCircle size={18} color="#f59e0b" />
+          <span>Your shop is not set up yet. Go to <strong>Shop Setup</strong> to add your location and name.</span>
         </div>
       )}
 
+      {/* Stats */}
       <div style={s.statsRow}>
-        {statsData.map((stat, i) => (
-          <div key={i} style={s.statCard}
-            onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.07)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)'; }}>
-            <div style={s.statIcon}>{stat.icon}</div>
-            <div style={s.statLabel}>{stat.label}</div>
-            <div style={s.statValue}>{stat.value}</div>
-          </div>
-        ))}
+        <div style={s.statCard}>
+          <div style={s.statNum}>{inventory.length}</div>
+          <div style={s.statLabel}>Total Medicines</div>
+        </div>
+        <div style={s.statCard}>
+          <div style={{ ...s.statNum, color: lowStock.length > 0 ? '#ef4444' : '#1D9E75' }}>{lowStock.length}</div>
+          <div style={s.statLabel}>Low Stock (&le;5)</div>
+        </div>
+        <div style={s.statCard}>
+          <div style={s.statNum}>{inventory.filter(i => i.stockQty > 0).length}</div>
+          <div style={s.statLabel}>In Stock</div>
+        </div>
       </div>
 
-      <div style={s.sectionHeading}>Pending Reservations 📋</div>
-      <div style={s.tableWrap}>
-        <table style={s.table}>
-          <thead><tr><th style={s.th}>Patient</th><th style={s.th}>Medicine</th><th style={s.th}>Qty</th><th style={s.th}>Code</th><th style={s.th}>Status</th><th style={s.th}>Action</th></tr></thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={6} style={s.loading}>⏳ Loading...</td></tr>
-            ) : reservations.length === 0 ? (
-              <tr><td colSpan={6} style={s.empty}>No pending reservations 🎉</td></tr>
-            ) : (
-              reservations.map((r) => (
-                <tr key={r._id}>
-                  <td style={{ ...s.td, ...s.patientName }}>{r.patientId?.name || r.patientId?.phone || 'Patient'}</td>
-                  <td style={s.td}>{r.medicineId?.name || 'Medicine'} {r.medicineId?.dosage || ''}</td>
-                  <td style={s.td}>{r.qty}</td>
-                  <td style={s.td}>{r.reservationCode}</td>
-                  <td style={s.td}><span style={s.badgePending}>{r.status}</span></td>
-                  <td style={s.td}>
-                    <div style={s.actionRow}>
-                      <button style={s.markReadyBtn} onClick={() => handleMarkReady(r._id)} onMouseEnter={(e) => (e.currentTarget.style.background = '#178c65')} onMouseLeave={(e) => (e.currentTarget.style.background = '#1D9E75')}>Mark Ready</button>
-                      <button style={s.cancelBtn} onClick={() => handleCancel(r._id)} onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#ef4444'; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.color = '#6b7280'; }}>Cancel</button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {lowStockItems.length > 0 && (
-        <>
-          <div style={s.sectionHeading}>Low Stock Alerts ⚠️</div>
-          <div style={s.lowStockRow}>
-            {lowStockItems.slice(0, 3).map((item) => (
-              <div key={item._id} style={s.lowStockCard}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.07)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)'; }}>
-                <div style={s.lowStockName}>{item.medicineId?.name || 'Medicine'}</div>
-                <div style={s.lowStockQty}>⚠️ {item.stockQty} left</div>
-                <button style={s.updateBtn} onClick={() => navigate('/vendor/inventory')}>Update Stock</button>
+      {/* Low stock alerts */}
+      {lowStock.length > 0 && (
+        <div style={s.section}>
+          <div style={s.sectionTitle}><AlertCircle size={16} color="#ef4444" /> Low Stock Alerts</div>
+          <div style={s.alertGrid}>
+            {lowStock.map(item => (
+              <div key={item._id} style={s.alertCard}>
+                <Package size={16} color="#f59e0b" />
+                <div style={{ flex: 1 }}>
+                  <div style={s.alertName}>{item.medicineId?.name}</div>
+                  <div style={s.alertQty}>Only {item.stockQty} left</div>
+                </div>
               </div>
             ))}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
 }
 
-export default VendorDashboard;
+const s = {
+  center: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px' },
+  spinner: { width: '28px', height: '28px', border: '3px solid #e5e7eb', borderTop: '3px solid #1D9E75', borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
+  pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' },
+  title: { fontSize: '1.5rem', fontWeight: 800, color: '#111827', margin: 0, letterSpacing: '-0.3px' },
+  sub: { fontSize: '0.85rem', color: '#9ca3af', margin: '2px 0 0', fontWeight: 400 },
+
+  shopCard: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: '14px', padding: '1.1rem 1.3rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' },
+  shopLeft: { display: 'flex', alignItems: 'center', gap: '12px' },
+  shopAvatar: { width: '44px', height: '44px', borderRadius: '12px', background: '#f0fdf7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  shopName: { fontWeight: 700, fontSize: '1rem', color: '#111827' },
+  shopAddr: { fontSize: '0.78rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' },
+  coordBadge: { fontSize: '0.75rem', fontWeight: 600, color: '#1D9E75', background: '#f0fdf7', padding: '0.3rem 0.7rem', borderRadius: '20px', whiteSpace: 'nowrap' },
+  noCoord: { fontSize: '0.75rem', color: '#9ca3af', fontStyle: 'italic' },
+
+  setupBanner: { display: 'flex', alignItems: 'center', gap: '10px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '0.9rem 1.1rem', marginBottom: '1.25rem', color: '#78350f', fontSize: '0.88rem' },
+
+  statsRow: { display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' },
+  statCard: { flex: 1, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '1rem 1.1rem', textAlign: 'center' },
+  statNum: { fontSize: '2rem', fontWeight: 800, color: '#111827', lineHeight: 1.1 },
+  statLabel: { fontSize: '0.72rem', color: '#9ca3af', marginTop: '4px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.5px' },
+
+  section: { marginTop: '0.5rem' },
+  sectionTitle: { fontSize: '0.9rem', fontWeight: 700, color: '#374151', marginBottom: '0.6rem' },
+  alertGrid: { display: 'flex', flexDirection: 'column', gap: '6px' },
+  alertCard: { display: 'flex', alignItems: 'center', gap: '10px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '0.7rem 1rem' },
+  alertName: { fontWeight: 600, fontSize: '0.88rem', color: '#111827' },
+  alertQty: { fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600 },
+};
